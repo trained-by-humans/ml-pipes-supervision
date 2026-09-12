@@ -1,9 +1,9 @@
-"""Count tracked vehicle routes through Supervision's traffic-analysis video.
+"""Analyze tracked vehicle zone visits in Supervision's traffic-analysis video.
 
 Run from the repo root:
     python examples/run_traffic_analysis.py
     python examples/run_traffic_analysis.py --input path/to/video.mov
-    python examples/run_traffic_analysis.py --output traffic-routes.mp4
+    python examples/run_traffic_analysis.py --output traffic-zone-visits.mp4
 
 The default input is the public ``traffic_analysis.mov`` video used by
 Supervision's traffic-analysis example. The matching custom YOLO weights are
@@ -14,6 +14,7 @@ also downloaded when ``--weights`` is omitted. Install the optional tools:
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 from pathlib import Path
 import sys
 from typing import TypeAlias
@@ -39,18 +40,29 @@ from ml_pipes.supervision import (
 )
 from ml_pipes.supervision.trackers import ByteTrack
 
-RouteKey: TypeAlias = tuple[int, int]
 Polygons: TypeAlias = tuple[npt.NDArray[np.int64], ...]
 Zones: TypeAlias = tuple[sv.PolygonZone, ...]
+ZoneVisits: TypeAlias = tuple[int, ...]
 
 DEFAULT_VIDEO_NAME = "traffic_analysis.mov"
 DEFAULT_WEIGHTS_NAME = "traffic_analysis.pt"
-DEFAULT_OUTPUT_NAME = "traffic-route-counting-result.mp4"
+DEFAULT_OUTPUT_NAME = "traffic-zone-visit-analysis-result.mp4"
 TRAFFIC_ANALYSIS_VIDEO_ID = "1qadBd7lgpediafCpL_yedGjQPk-FLK-W"
 TRAFFIC_ANALYSIS_WEIGHTS_ID = "1y-IfToCjRXa3ZdC1JpnKRopC7mcQW-5z"
 # ``traffic_analysis.pt`` defines bus, car, truck, and van as IDs 0 through 3.
 VEHICLE_CLASS_IDS = frozenset({0, 1, 2, 3})
-COLORS = sv.ColorPalette.from_hex(["#E6194B", "#3CB44B", "#FFE119", "#3C76D1"])
+COLORS = sv.ColorPalette.from_hex(
+    [
+        "#E6194B",  # Entry 0 / Exit 0: top
+        "#3CB44B",  # Entry 1 / Exit 1: bottom
+        "#FFE119",  # Entry 2 / Exit 2: left
+        "#3C76D1",  # Entry 3 / Exit 3: right
+        "#E6194B",
+        "#3CB44B",
+        "#FFE119",
+        "#3C76D1",
+    ]
+)
 
 ENTRY_ZONE_POLYGONS = (
     np.asarray([[592, 282], [900, 282], [900, 82], [592, 82]], dtype=np.int64),
@@ -64,28 +76,9 @@ EXIT_ZONE_POLYGONS = (
     np.asarray([[592, 282], [592, 550], [392, 550], [392, 282]], dtype=np.int64),
     np.asarray([[1250, 860], [1250, 560], [1450, 560], [1450, 860]], dtype=np.int64),
 )
-
-
-def _copy_detections_with_data(
-    detections: sv.Detections,
-    field: str,
-    values: npt.NDArray[np.int32],
-) -> sv.Detections:
-    data = dict(detections.data)
-    data[field] = values
-    return sv.Detections(
-        xyxy=detections.xyxy.copy(),
-        mask=detections.mask,
-        confidence=None
-        if detections.confidence is None
-        else detections.confidence.copy(),
-        class_id=None if detections.class_id is None else detections.class_id.copy(),
-        tracker_id=None
-        if detections.tracker_id is None
-        else detections.tracker_id.copy(),
-        data=data,
-        metadata=dict(detections.metadata),
-    )
+TRAFFIC_ZONE_POLYGONS = ENTRY_ZONE_POLYGONS + EXIT_ZONE_POLYGONS
+ENTRY_ZONE_IDS = tuple(range(len(ENTRY_ZONE_POLYGONS)))
+EXIT_ZONE_IDS = tuple(range(len(ENTRY_ZONE_POLYGONS), len(TRAFFIC_ZONE_POLYGONS)))
 
 
 def _zone_ids(detections: sv.Detections, field: str) -> npt.NDArray[np.int32]:
@@ -121,105 +114,242 @@ class MarkZone:
         for zone_id, zone in enumerate(self.zones):
             is_in_zone = zone.trigger(detections)
             marked[(marked == -1) & is_in_zone] = zone_id
-        return _copy_detections_with_data(detections, self.field, marked)
+        detections[self.field] = marked
+        return detections
 
 
 @Operator
-class TrackingRouteCounter:
-    """Count unique tracked routes from marked source and destination zones.
+class TrackZoneVisits:
+    """Attach each tracked detection's ordered zone-visit history.
 
-    ``destination_field=None`` turns one zone field into a bidirectional set
-    of gateways: the first zone visited is the origin and a later, different
-    zone becomes its destination.
+    When ``start_zone_ids`` is set, a track starts collecting visits only after
+    it reaches one of those zones. When it reaches an ``end_zone_ids`` zone,
+    that terminal visit is recorded and its history stops changing. This lets
+    an application define entry and exit zones without giving special meaning
+    to the remaining zones.
     """
 
     def __init__(
         self,
-        origin_field: str,
-        destination_field: str | None = None,
-        output_field: str = "route_origin",
+        polygons: Polygons,
+        *,
+        start_zone_ids: tuple[int, ...] | None = None,
+        end_zone_ids: tuple[int, ...] | None = None,
+        triggering_anchors: tuple[sv.Position, ...] = (sv.Position.CENTER,),
+        allow_revisit: bool = False,
+        field: str = "zone_visits",
     ) -> None:
-        if not origin_field:
-            raise ValueError("origin_field must not be empty.")
-        if destination_field is not None and not destination_field:
-            raise ValueError("destination_field must not be empty when provided.")
-        if not output_field:
-            raise ValueError("output_field must not be empty.")
-        self.origin_field = origin_field
-        self.is_bidirectional = destination_field is None
-        self.destination_field = destination_field or origin_field
-        self.output_field = output_field
-        self._origin_by_tracker_id: dict[int, int] = {}
-        self._tracker_ids_by_route: dict[RouteKey, set[int]] = {}
-
-    @property
-    def route_counts(self) -> dict[RouteKey, int]:
-        """Return a snapshot of unique tracked-object totals by route."""
-        return {
-            route: len(tracker_ids)
-            for route, tracker_ids in self._tracker_ids_by_route.items()
-        }
+        if not polygons:
+            raise ValueError("TrackZoneVisits requires at least one polygon.")
+        if not triggering_anchors:
+            raise ValueError("triggering_anchors must not be empty.")
+        if not field:
+            raise ValueError("field must not be empty.")
+        if start_zone_ids is not None and any(
+            zone_id < 0 or zone_id >= len(polygons) for zone_id in start_zone_ids
+        ):
+            raise ValueError("start_zone_ids must refer to configured polygons.")
+        if end_zone_ids is not None and any(
+            zone_id < 0 or zone_id >= len(polygons) for zone_id in end_zone_ids
+        ):
+            raise ValueError("end_zone_ids must refer to configured polygons.")
+        self.zones = build_zones(polygons, triggering_anchors)
+        self.start_zone_ids = (
+            None if start_zone_ids is None else frozenset(start_zone_ids)
+        )
+        self.end_zone_ids = None if end_zone_ids is None else frozenset(end_zone_ids)
+        self.allow_revisit = allow_revisit
+        self.field = field
+        self._zone_visits_by_tracker_id: dict[int, ZoneVisits] = {}
+        self._current_zone_by_tracker_id: dict[int, int] = {}
+        self._finished_tracker_ids: set[int] = set()
 
     def reset(self) -> None:
-        """Clear origins and route totals before processing a new stream."""
-        self._origin_by_tracker_id.clear()
-        self._tracker_ids_by_route.clear()
+        """Clear zone-visit histories before processing a new video stream."""
+        self._zone_visits_by_tracker_id.clear()
+        self._current_zone_by_tracker_id.clear()
+        self._finished_tracker_ids.clear()
 
     def __call__(self, detections: sv.Detections) -> sv.Detections:
         if detections.tracker_id is None:
-            raise ValueError("TrackingRouteCounter requires detections with tracker_id values.")
+            raise ValueError("TrackZoneVisits requires detections with tracker_id values.")
 
-        origin_marks = _zone_ids(detections, self.origin_field)
-        destination_marks = _zone_ids(detections, self.destination_field)
-        tracker_ids = np.asarray(detections.tracker_id, dtype=np.int64)
-        route_origins = np.full(len(detections), -1, dtype=np.int32)
+        current_zones = np.full(len(detections), -1, dtype=np.int32)
+        for zone_id, zone in enumerate(self.zones):
+            is_in_zone = zone.trigger(detections)
+            current_zones[(current_zones == -1) & is_in_zone] = zone_id
 
-        for index, tracker_id_value in enumerate(tracker_ids):
+        zone_visits = np.empty(len(detections), dtype=object)
+        for index, tracker_id_value in enumerate(detections.tracker_id):
             tracker_id = int(tracker_id_value)
             if tracker_id < 0:
+                zone_visits[index] = ()
+                continue
+            if tracker_id in self._finished_tracker_ids:
+                zone_visits[index] = self._zone_visits_by_tracker_id[tracker_id]
                 continue
 
-            marked_origin = int(origin_marks[index])
-            if marked_origin >= 0:
-                self._origin_by_tracker_id.setdefault(tracker_id, marked_origin)
+            current_zone = int(current_zones[index])
+            visits = self._zone_visits_by_tracker_id.get(tracker_id, ())
+            previous_zone = self._current_zone_by_tracker_id.get(tracker_id)
+            if current_zone < 0:
+                self._current_zone_by_tracker_id.pop(tracker_id, None)
+            elif current_zone != previous_zone:
+                is_active = tracker_id in self._zone_visits_by_tracker_id
+                can_start = (
+                    self.start_zone_ids is None
+                    or current_zone in self.start_zone_ids
+                )
+                if is_active or can_start:
+                    if self.allow_revisit or current_zone not in visits:
+                        visits = (*visits, current_zone)
+                        self._zone_visits_by_tracker_id[tracker_id] = visits
+                    if (
+                        self.end_zone_ids is not None
+                        and current_zone in self.end_zone_ids
+                    ):
+                        self._finished_tracker_ids.add(tracker_id)
+                self._current_zone_by_tracker_id[tracker_id] = current_zone
+            zone_visits[index] = visits
 
-            route_origin = self._origin_by_tracker_id.get(tracker_id, -1)
-            route_origins[index] = route_origin
-            marked_destination = int(destination_marks[index])
-            if (
-                route_origin >= 0
-                and marked_destination >= 0
-                and (not self.is_bidirectional or marked_destination != route_origin)
-            ):
-                self._tracker_ids_by_route.setdefault(
-                    (route_origin, marked_destination), set()
-                ).add(tracker_id)
-
-        return _copy_detections_with_data(detections, self.output_field, route_origins)
+        detections[self.field] = zone_visits
+        return detections
 
 
-def route_origin_color_lookup(detection: Detection) -> int:
-    """Choose a route-palette index after ``has_route_origin`` filters detections."""
-    return int(detection.data["route_origin"])
+@dataclass(frozen=True)
+class ZoneVisitMetrics:
+    """Snapshot of the visit and transition analytics for one zone."""
+
+    unique_visitor_count: int
+    total_visit_count: int
+    unique_arrival_count: int
+    unique_departure_count: int
+    unique_arrivals_from: dict[int, int]
+    unique_departures_to: dict[int, int]
 
 
 @Operator
-class RouteCountAnnotator:
-    """Draw route zones and totals already maintained by a route counter."""
+class ZoneVisitAnalytics:
+    """Aggregate new visits and directed transitions from zone-visit histories."""
+
+    def __init__(self, zone_count: int, field: str = "zone_visits") -> None:
+        if zone_count < 1:
+            raise ValueError("zone_count must be at least one.")
+        if not field:
+            raise ValueError("field must not be empty.")
+        self.zone_count = zone_count
+        self.field = field
+        self._processed_visits_by_tracker_id: dict[int, int] = {}
+        self._visitor_ids_by_zone: list[set[int]] = [set() for _ in range(zone_count)]
+        self._total_visit_counts = [0] * zone_count
+        self._arrival_ids_by_zone: dict[int, set[int]] = {}
+        self._departure_ids_by_zone: dict[int, set[int]] = {}
+        self._tracker_ids_by_transition: dict[tuple[int, int], set[int]] = {}
+
+    @property
+    def metrics(self) -> tuple[ZoneVisitMetrics, ...]:
+        return tuple(
+            ZoneVisitMetrics(
+                unique_visitor_count=len(self._visitor_ids_by_zone[zone_id]),
+                total_visit_count=self._total_visit_counts[zone_id],
+                unique_arrival_count=len(self._arrival_ids_by_zone.get(zone_id, set())),
+                unique_departure_count=len(
+                    self._departure_ids_by_zone.get(zone_id, set())
+                ),
+                unique_arrivals_from={
+                    origin_id: len(tracker_ids)
+                    for (origin_id, destination_id), tracker_ids in self._tracker_ids_by_transition.items()
+                    if destination_id == zone_id
+                },
+                unique_departures_to={
+                    destination_id: len(tracker_ids)
+                    for (origin_id, destination_id), tracker_ids in self._tracker_ids_by_transition.items()
+                    if origin_id == zone_id
+                },
+            )
+            for zone_id in range(self.zone_count)
+        )
+
+    def reset(self) -> None:
+        """Clear aggregate analytics before processing a new video stream."""
+        self._processed_visits_by_tracker_id.clear()
+        self._visitor_ids_by_zone = [set() for _ in range(self.zone_count)]
+        self._total_visit_counts = [0] * self.zone_count
+        self._arrival_ids_by_zone.clear()
+        self._departure_ids_by_zone.clear()
+        self._tracker_ids_by_transition.clear()
+
+    def __call__(
+        self, detections: sv.Detections
+    ) -> tuple[sv.Detections, tuple[ZoneVisitMetrics, ...]]:
+        if detections.tracker_id is None:
+            raise ValueError("ZoneVisitAnalytics requires detections with tracker_id values.")
+        zone_visits = detections.data.get(self.field)
+        if zone_visits is None:
+            raise ValueError(
+                f"Detections are missing the {self.field!r} zone-visit data field."
+            )
+        if len(zone_visits) != len(detections):
+            raise ValueError(
+                f"The {self.field!r} zone-visit data field must have one value per detection."
+            )
+
+        for tracker_id_value, visits_value in zip(detections.tracker_id, zone_visits):
+            tracker_id = int(tracker_id_value)
+            if tracker_id < 0:
+                continue
+            visits = tuple(int(zone_id) for zone_id in visits_value)
+            if not visits:
+                continue
+
+            processed_visits = self._processed_visits_by_tracker_id.get(tracker_id, 0)
+            for visit_index in range(processed_visits, len(visits)):
+                zone_id = visits[visit_index]
+                if not 0 <= zone_id < self.zone_count:
+                    raise ValueError(
+                        f"Zone ID {zone_id} is outside the configured range 0 through "
+                        f"{self.zone_count - 1}."
+                    )
+                self._visitor_ids_by_zone[zone_id].add(tracker_id)
+                self._total_visit_counts[zone_id] += 1
+                if visit_index == 0:
+                    continue
+                departure_zone = visits[visit_index - 1]
+                arrival_zone = zone_id
+                self._departure_ids_by_zone.setdefault(departure_zone, set()).add(
+                    tracker_id
+                )
+                self._arrival_ids_by_zone.setdefault(arrival_zone, set()).add(tracker_id)
+                self._tracker_ids_by_transition.setdefault(
+                    (departure_zone, arrival_zone), set()
+                ).add(tracker_id)
+            self._processed_visits_by_tracker_id[tracker_id] = len(visits)
+
+        return detections, self.metrics
+
+
+def zone_visit_color_lookup(detection: Detection) -> int:
+    """Use the first visited zone as a tracked detection's display color."""
+    return int(detection.data["zone_visits"][0])
+
+
+@Operator
+class ZoneTransitionAnnotator:
+    """Draw polygons and directed transition totals from a metrics snapshot."""
 
     def __init__(
         self,
-        entry_polygons: Polygons,
-        exit_polygons: Polygons,
-        route_counter: TrackingRouteCounter,
+        polygons: Polygons,
+        zone_labels: tuple[str, ...] | None = None,
         color: sv.ColorPalette = COLORS,
         thickness: int = 2,
         text_scale: float = 0.7,
         text_thickness: int = 2,
     ) -> None:
-        self.entry_polygons = entry_polygons
-        self.exit_polygons = exit_polygons
-        self.route_counter = route_counter
+        if zone_labels is not None and len(zone_labels) != len(polygons):
+            raise ValueError("zone_labels must have one label per polygon.")
+        self.polygons = polygons
+        self.zone_labels = zone_labels
         self.color = color
         self.thickness = thickness
         self.text_scale = text_scale
@@ -229,16 +359,12 @@ class RouteCountAnnotator:
         self,
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
+        metrics_by_zone: tuple[ZoneVisitMetrics, ...],
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
+        if len(metrics_by_zone) != len(self.polygons):
+            raise ValueError("The number of zone metrics must match the number of polygons.")
         annotated = scene.copy()
-        for zone_id, polygon in enumerate(self.entry_polygons):
-            annotated = sv.draw_polygon(
-                scene=annotated,
-                polygon=polygon,
-                color=self.color.by_idx(zone_id),
-                thickness=self.thickness,
-            )
-        for zone_id, polygon in enumerate(self.exit_polygons):
+        for zone_id, polygon in enumerate(self.polygons):
             annotated = sv.draw_polygon(
                 scene=annotated,
                 polygon=polygon,
@@ -246,15 +372,17 @@ class RouteCountAnnotator:
                 thickness=self.thickness,
             )
 
-        for destination_id, destination_polygon in enumerate(self.exit_polygons):
+        for destination_id, destination_polygon in enumerate(self.polygons):
             destination_center = sv.get_polygon_center(destination_polygon)
-            route_rows = sorted(
-                (origin_id, count)
-                for (origin_id, route_destination_id), count in self.route_counter.route_counts.items()
-                if route_destination_id == destination_id
+            transition_rows = sorted(
+                metrics_by_zone[destination_id].unique_arrivals_from.items()
             )
-            for row, (origin_id, count) in enumerate(route_rows):
-                label = f"Entry {origin_id + 1}: {count}"
+            for row, (origin_id, count) in enumerate(transition_rows):
+                label = (
+                    str(count)
+                    if self.zone_labels is None
+                    else f"{self.zone_labels[origin_id]}: {count}"
+                )
                 text_anchor = sv.Point(
                     x=destination_center.x,
                     y=destination_center.y + (40 * row),
@@ -273,11 +401,12 @@ class RouteCountAnnotator:
 
 def build_zones(
     polygons: Polygons,
+    triggering_anchors: tuple[sv.Position, ...] = (sv.Position.CENTER,),
 ) -> Zones:
     return tuple(
         sv.PolygonZone(
             polygon=polygon,
-            triggering_anchors=[sv.Position.CENTER],
+            triggering_anchors=list(triggering_anchors),
         )
         for polygon in polygons
     )
@@ -289,15 +418,15 @@ def keep_vehicle_detections(detections: sv.Detections) -> npt.NDArray[np.bool_]:
     return np.isin(np.asarray(detections.class_id), tuple(VEHICLE_CLASS_IDS))
 
 
-def has_route_origin(detections: sv.Detections) -> npt.NDArray[np.bool_]:
-    return _zone_ids(detections, "route_origin") >= 0
+def has_zone_visits(detections: sv.Detections) -> npt.NDArray[np.bool_]:
+    zone_visits = detections.data.get("zone_visits", [()] * len(detections))
+    return np.asarray([bool(visits) for visits in zone_visits], dtype=bool)
 
 
 def build_frame_pipeline(
     weights_path: Path,
-    entry_polygons: Polygons,
-    exit_polygons: Polygons,
-) -> Pipeline[npt.NDArray[np.uint8], npt.NDArray[np.uint8]]:
+    zones: Polygons,
+) -> Pipeline[npt.NDArray[np.uint8], tuple[npt.NDArray[np.uint8], sv.Detections]]:
     try:
         from ml_pipes.ultralytics import yolo
     except ImportError as error:
@@ -307,8 +436,6 @@ def build_frame_pipeline(
             "git+https://github.com/requiem4machines/ml-pipes-ultralytics.git\"'."
         ) from error
 
-    route_counter = TrackingRouteCounter("entry_zone", "exit_zone")
-
     return Pipeline(
         [
             Store("source_frame"),
@@ -317,17 +444,22 @@ def build_frame_pipeline(
             Detections.FromUltralytics(),
             Detections.Filter(keep_vehicle_detections),
             ByteTrack(),
-            MarkZone(build_zones(entry_polygons), "entry_zone"),
-            MarkZone(build_zones(exit_polygons), "exit_zone"),
-            route_counter,
-            Detections.Filter(has_route_origin),
-            Recall("source_frame", prepend=True),
-            TraceAnnotator(thickness=2, color=COLORS, custom_color_lookup=route_origin_color_lookup),
-            BoxAnnotator(color=COLORS, custom_color_lookup=route_origin_color_lookup),
-            LabelAnnotator(show_tracker_id=True, color=COLORS, custom_color_lookup=route_origin_color_lookup),
-            RouteCountAnnotator(entry_polygons, exit_polygons, route_counter),
-            ImageWindow("Traffic Route Counting", at=0),
+            TrackZoneVisits(
+                zones,
+                start_zone_ids=ENTRY_ZONE_IDS,
+                end_zone_ids=EXIT_ZONE_IDS,
+            ),
+            ZoneVisitAnalytics(zone_count=len(zones)),
+            Store("zone_visit_metrics", source=1),
             Pick(0),
+            Detections.Filter(has_zone_visits),
+            Recall("source_frame", prepend=True),
+            TraceAnnotator(thickness=2, color=COLORS, custom_color_lookup=zone_visit_color_lookup),
+            BoxAnnotator(color=COLORS, custom_color_lookup=zone_visit_color_lookup),
+            LabelAnnotator(show_tracker_id=True, color=COLORS, custom_color_lookup=zone_visit_color_lookup),
+            Recall("zone_visit_metrics"),
+            ZoneTransitionAnnotator(zones),
+            ImageWindow("Traffic Zone Visit Analytics", at=0),
         ],
         auto_validate=True,
     )
@@ -423,8 +555,7 @@ def main() -> int:
     try:
         pipeline = build_frame_pipeline(
             weights_path=weights_path,
-            entry_polygons=ENTRY_ZONE_POLYGONS,
-            exit_polygons=EXIT_ZONE_POLYGONS,
+            zones=TRAFFIC_ZONE_POLYGONS,
         )
     except RuntimeError as error:
         print(f"Error: {error}", file=sys.stderr)
@@ -436,9 +567,9 @@ def main() -> int:
     sv.process_video(
         source_path=str(input_path),
         target_path=str(args.output),
-        callback=lambda frame, _: pipeline(frame),
+        callback=lambda frame, _: pipeline(frame)[0],
     )
-    print(f"Saved route-counting video to {args.output}", file=sys.stderr)
+    print(f"Saved zone-visit analysis video to {args.output}", file=sys.stderr)
     return 0
 
 
