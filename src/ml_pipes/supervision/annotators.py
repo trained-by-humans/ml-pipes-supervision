@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from numbers import Integral
 from typing import Any, cast
 
 import numpy as np
@@ -12,6 +13,48 @@ from ml_pipes.operator import Operator
 from .core import Detection
 
 
+def _detection_records(detections: sv.Detections) -> Iterator[Detection]:
+    """Yield the public per-detection view used by formatter callbacks."""
+    for xyxy, mask, confidence, class_id, tracker_id, data in detections:
+        yield Detection(
+            xyxy=xyxy,
+            mask=mask,
+            confidence=confidence,
+            class_id=class_id,
+            tracker_id=tracker_id,
+            data=data,
+        )
+
+
+class _DetectionColorLookup:
+    """Build Supervision's per-detection palette-index array."""
+
+    def __init__(
+        self,
+        custom_color_lookup: Callable[[Detection], int] | None,
+    ) -> None:
+        if custom_color_lookup is not None and not callable(custom_color_lookup):
+            raise TypeError("custom_color_lookup must be callable.")
+        self.custom_color_lookup = custom_color_lookup
+
+    def resolve(
+        self, detections: sv.Detections
+    ) -> npt.NDArray[np.int64] | None:
+        if self.custom_color_lookup is None or len(detections) == 0:
+            return None
+
+        lookup = np.empty(len(detections), dtype=np.int64)
+        for index, detection in enumerate(_detection_records(detections)):
+            palette_index = self.custom_color_lookup(detection)
+            if not isinstance(palette_index, Integral):
+                raise TypeError(
+                    "custom_color_lookup must return an integer palette index, "
+                    f"got {type(palette_index).__name__}."
+                )
+            lookup[index] = palette_index
+        return lookup
+
+
 @Operator
 class BoxAnnotator:
     def __init__(
@@ -19,7 +62,9 @@ class BoxAnnotator:
         color: sv.Color | sv.ColorPalette | str = sv.ColorPalette.DEFAULT,
         thickness: int = 2,
         color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
     ) -> None:
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self.annotator = sv.BoxAnnotator(
             color=color,
             thickness=thickness,
@@ -31,7 +76,12 @@ class BoxAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
-        annotated = self.annotator.annotate(scene=scene.copy(), detections=detections)
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
+        annotated = self.annotator.annotate(
+            scene=scene.copy(),
+            detections=detections,
+            custom_color_lookup=custom_color_lookup,
+        )
         return annotated, detections
 
 
@@ -42,7 +92,9 @@ class OrientedBoxAnnotator:
         color: sv.Color | sv.ColorPalette | str = sv.ColorPalette.DEFAULT,
         thickness: int = 2,
         color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
     ) -> None:
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self.annotator = sv.OrientedBoxAnnotator(
             color=color,
             thickness=thickness,
@@ -54,7 +106,12 @@ class OrientedBoxAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
-        annotated = self.annotator.annotate(scene=scene.copy(), detections=detections)
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
+        annotated = self.annotator.annotate(
+            scene=scene.copy(),
+            detections=detections,
+            custom_color_lookup=custom_color_lookup,
+        )
         return annotated, detections
 
 
@@ -65,7 +122,9 @@ class MaskAnnotator:
         color: sv.Color | sv.ColorPalette | str = sv.ColorPalette.DEFAULT,
         opacity: float = 0.5,
         color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
     ) -> None:
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self.annotator = sv.MaskAnnotator(
             color=color,
             opacity=opacity,
@@ -77,7 +136,12 @@ class MaskAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
-        annotated = self.annotator.annotate(scene=scene.copy(), detections=detections)
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
+        annotated = self.annotator.annotate(
+            scene=scene.copy(),
+            detections=detections,
+            custom_color_lookup=custom_color_lookup,
+        )
         return annotated, detections
 
 
@@ -88,7 +152,9 @@ class PolygonAnnotator:
         color: sv.Color | sv.ColorPalette | str = sv.ColorPalette.DEFAULT,
         thickness: int = 2,
         color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
     ) -> None:
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self.annotator = sv.PolygonAnnotator(
             color=color,
             thickness=thickness,
@@ -100,7 +166,12 @@ class PolygonAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
-        annotated = self.annotator.annotate(scene=scene.copy(), detections=detections)
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
+        annotated = self.annotator.annotate(
+            scene=scene.copy(),
+            detections=detections,
+            custom_color_lookup=custom_color_lookup,
+        )
         return annotated, detections
 
 
@@ -282,7 +353,9 @@ class ColorAnnotator:
         color: sv.Color | sv.ColorPalette | str = sv.ColorPalette.DEFAULT,
         opacity: float = 0.5,
         color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
     ) -> None:
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self.annotator = sv.ColorAnnotator(
             color=color,
             opacity=opacity,
@@ -294,7 +367,12 @@ class ColorAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
-        annotated = self.annotator.annotate(scene=scene.copy(), detections=detections)
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
+        annotated = self.annotator.annotate(
+            scene=scene.copy(),
+            detections=detections,
+            custom_color_lookup=custom_color_lookup,
+        )
         return annotated, detections
 
 
@@ -306,7 +384,9 @@ class HaloAnnotator:
         opacity: float = 0.8,
         kernel_size: int = 40,
         color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
     ) -> None:
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self.annotator = sv.HaloAnnotator(
             color=color,
             opacity=opacity,
@@ -319,7 +399,12 @@ class HaloAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
-        annotated = self.annotator.annotate(scene=scene.copy(), detections=detections)
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
+        annotated = self.annotator.annotate(
+            scene=scene.copy(),
+            detections=detections,
+            custom_color_lookup=custom_color_lookup,
+        )
         return annotated, detections
 
 
@@ -332,7 +417,9 @@ class EllipseAnnotator:
         start_angle: int = -45,
         end_angle: int = 235,
         color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
     ) -> None:
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self.annotator = sv.EllipseAnnotator(
             color=color,
             thickness=thickness,
@@ -346,7 +433,12 @@ class EllipseAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
-        annotated = self.annotator.annotate(scene=scene.copy(), detections=detections)
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
+        annotated = self.annotator.annotate(
+            scene=scene.copy(),
+            detections=detections,
+            custom_color_lookup=custom_color_lookup,
+        )
         return annotated, detections
 
 
@@ -358,7 +450,9 @@ class BoxCornerAnnotator:
         thickness: int = 4,
         corner_length: int = 15,
         color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
     ) -> None:
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self.annotator = sv.BoxCornerAnnotator(
             color=color,
             thickness=thickness,
@@ -371,7 +465,12 @@ class BoxCornerAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
-        annotated = self.annotator.annotate(scene=scene.copy(), detections=detections)
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
+        annotated = self.annotator.annotate(
+            scene=scene.copy(),
+            detections=detections,
+            custom_color_lookup=custom_color_lookup,
+        )
         return annotated, detections
 
 
@@ -382,7 +481,9 @@ class CircleAnnotator:
         color: sv.Color | sv.ColorPalette | str = sv.ColorPalette.DEFAULT,
         thickness: int = 2,
         color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
     ) -> None:
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self.annotator = sv.CircleAnnotator(
             color=color,
             thickness=thickness,
@@ -394,7 +495,12 @@ class CircleAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
-        annotated = self.annotator.annotate(scene=scene.copy(), detections=detections)
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
+        annotated = self.annotator.annotate(
+            scene=scene.copy(),
+            detections=detections,
+            custom_color_lookup=custom_color_lookup,
+        )
         return annotated, detections
 
 
@@ -406,9 +512,11 @@ class DotAnnotator:
         radius: int = 4,
         position: sv.Position = sv.Position.CENTER,
         color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
         outline_thickness: int = 0,
         outline_color: sv.Color | sv.ColorPalette | str = sv.Color.BLACK,
     ) -> None:
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self.annotator = sv.DotAnnotator(
             color=color,
             radius=radius,
@@ -423,7 +531,12 @@ class DotAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
-        annotated = self.annotator.annotate(scene=scene.copy(), detections=detections)
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
+        annotated = self.annotator.annotate(
+            scene=scene.copy(),
+            detections=detections,
+            custom_color_lookup=custom_color_lookup,
+        )
         return annotated, detections
 
 
@@ -513,17 +626,8 @@ class _CustomLabelFormatter:
 
     def __call__(self, detections: sv.Detections) -> list[str]:
         labels: list[str] = []
-        for xyxy, mask, confidence, class_id, tracker_id, data in detections:
-            rendered = self.label_formatter(
-                Detection(
-                    xyxy=xyxy,
-                    mask=mask,
-                    confidence=confidence,
-                    class_id=class_id,
-                    tracker_id=tracker_id,
-                    data=data,
-                )
-            )
+        for detection in _detection_records(detections):
+            rendered = self.label_formatter(detection)
             if not isinstance(rendered, str):
                 raise TypeError(
                     "label_formatter must return str, "
@@ -567,6 +671,7 @@ class LabelAnnotator:
         self,
         color: sv.Color | sv.ColorPalette | str = sv.ColorPalette.DEFAULT,
         color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
         text_color: sv.Color | sv.ColorPalette | str = sv.Color.WHITE,
         text_scale: float = 0.5,
         text_thickness: int = 1,
@@ -582,6 +687,7 @@ class LabelAnnotator:
         tracker_id_prefix: str = "#",
         label_formatter: Callable[[Detection], str] | None = None,
     ) -> None:
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self._label_formatter = _build_label_formatter(
             show_class=show_class,
             show_confidence=show_confidence,
@@ -608,9 +714,11 @@ class LabelAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
         annotated = self.annotator.annotate(
             scene=scene.copy(),
             detections=detections,
+            custom_color_lookup=custom_color_lookup,
             labels=self._label_formatter(detections),
         )
         return annotated, detections
@@ -622,6 +730,7 @@ class RichLabelAnnotator:
         self,
         color: sv.Color | sv.ColorPalette | str = sv.ColorPalette.DEFAULT,
         color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
         text_color: sv.Color | sv.ColorPalette | str = sv.Color.WHITE,
         font_path: str | None = None,
         font_size: int = 10,
@@ -637,6 +746,7 @@ class RichLabelAnnotator:
         tracker_id_prefix: str = "#",
         label_formatter: Callable[[Detection], str] | None = None,
     ) -> None:
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self._label_formatter = _build_label_formatter(
             show_class=show_class,
             show_confidence=show_confidence,
@@ -663,9 +773,11 @@ class RichLabelAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
         annotated = self.annotator.annotate(
             scene=scene.copy(),
             detections=detections,
+            custom_color_lookup=custom_color_lookup,
             labels=self._label_formatter(detections),
         )
         return annotated, detections
@@ -724,7 +836,9 @@ class TraceAnnotator:
         thickness: int = 2,
         smooth: bool = False,
         color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
     ) -> None:
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self.annotator = sv.TraceAnnotator(
             color=color,
             position=position,
@@ -739,7 +853,12 @@ class TraceAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
-        annotated = self.annotator.annotate(scene=scene.copy(), detections=detections)
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
+        annotated = self.annotator.annotate(
+            scene=scene.copy(),
+            detections=detections,
+            custom_color_lookup=custom_color_lookup,
+        )
         return annotated, detections
 
 
@@ -795,9 +914,11 @@ class TriangleAnnotator:
         height: int = 10,
         position: sv.Position = sv.Position.TOP_CENTER,
         color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
         outline_thickness: int = 0,
         outline_color: sv.Color | sv.ColorPalette | str = sv.Color.BLACK,
     ) -> None:
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self.annotator = sv.TriangleAnnotator(
             color=color,
             base=base,
@@ -813,7 +934,12 @@ class TriangleAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
-        annotated = self.annotator.annotate(scene=scene.copy(), detections=detections)
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
+        annotated = self.annotator.annotate(
+            scene=scene.copy(),
+            detections=detections,
+            custom_color_lookup=custom_color_lookup,
+        )
         return annotated, detections
 
 
@@ -824,8 +950,10 @@ class RoundBoxAnnotator:
         color: sv.Color | sv.ColorPalette | str = sv.ColorPalette.DEFAULT,
         thickness: int = 2,
         color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
         roundness: float = 0.6,
     ) -> None:
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self.annotator = sv.RoundBoxAnnotator(
             color=color,
             thickness=thickness,
@@ -838,7 +966,12 @@ class RoundBoxAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
-        annotated = self.annotator.annotate(scene=scene.copy(), detections=detections)
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
+        annotated = self.annotator.annotate(
+            scene=scene.copy(),
+            detections=detections,
+            custom_color_lookup=custom_color_lookup,
+        )
         return annotated, detections
 
 
@@ -852,10 +985,12 @@ class PercentageBarAnnotator:
         border_color: sv.Color | str = sv.Color.BLACK,
         position: sv.Position = sv.Position.TOP_CENTER,
         color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
         border_thickness: int | None = None,
         custom_values: Any = None,
     ) -> None:
         self.custom_values = custom_values
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self.annotator = sv.PercentageBarAnnotator(
             height=height,
             width=width,
@@ -871,9 +1006,11 @@ class PercentageBarAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
         annotated = self.annotator.annotate(
             scene=scene.copy(),
             detections=detections,
+            custom_color_lookup=custom_color_lookup,
             custom_values=self.custom_values,
         )
         return annotated, detections
@@ -888,7 +1025,9 @@ class CropAnnotator:
         border_color: sv.Color | sv.ColorPalette | str = sv.ColorPalette.DEFAULT,
         border_thickness: int = 2,
         border_color_lookup: sv.ColorLookup = sv.ColorLookup.CLASS,
+        custom_color_lookup: Callable[[Detection], int] | None = None,
     ) -> None:
+        self._detection_color_lookup = _DetectionColorLookup(custom_color_lookup)
         self.annotator = sv.CropAnnotator(
             position=position,
             scale_factor=scale_factor,
@@ -902,7 +1041,12 @@ class CropAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
     ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
-        annotated = self.annotator.annotate(scene=scene.copy(), detections=detections)
+        custom_color_lookup = self._detection_color_lookup.resolve(detections)
+        annotated = self.annotator.annotate(
+            scene=scene.copy(),
+            detections=detections,
+            custom_color_lookup=custom_color_lookup,
+        )
         return annotated, detections
 
 

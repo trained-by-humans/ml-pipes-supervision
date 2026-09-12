@@ -45,6 +45,12 @@ from any detection data with `label_formatter=...`. The callback receives a
 `Detection` with its box, confidence, class ID, tracker ID, and per-detection
 data, and must return the label text.
 
+Annotators backed by Supervision's per-detection color lookup also accept
+`custom_color_lookup=...`. This callback receives the same `Detection` and
+returns an integer index into the configured `color` palette (or
+`border_color` palette for `CropAnnotator`), overriding `color_lookup` with
+color based on tracking IDs or custom detection data.
+
 | Operator group | Operators |
 |---|---|
 | Detection | `BoxAnnotator`, `BoxCornerAnnotator`, `CircleAnnotator`, `ColorAnnotator`, `DotAnnotator`, `EllipseAnnotator`, `HaloAnnotator`, `LabelAnnotator`, `OrientedBoxAnnotator`, `RichLabelAnnotator`, `RoundBoxAnnotator`, `TriangleAnnotator` |
