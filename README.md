@@ -3,6 +3,15 @@
 
 # ml-pipes-supervision
 
+> [!IMPORTANT]
+> `ml-pipes-supervision` is a community-maintained project
+> within the [ml-pipes](https://github.com/trained-by-humans) ecosystem. The
+> project has its own maintainers and development roadmap, while benefiting
+> from ml-pipes' verified publishing and distribution process.
+>
+> For contributions, issues, and project decisions, use this repository's
+> maintainers and issue tracker.
+
 ## Hello
 
 [Supervision](https://github.com/roboflow/supervision) is your essential toolkit for computer vision. From data loading to real-time zone counting, it provides the building blocks so you can focus on building applications around your models.
@@ -32,7 +41,7 @@ Install directly from this repository in a [Python >=3.10](https://www.python.or
 environment:
 
 ```bash
-python -m pip install "ml-pipes-supervision @ git+https://github.com/requiem4machines/ml-pipes-supervision.git"
+python -m pip install "ml-pipes-supervision @ git+https://github.com/trained-by-humans/ml-pipes-supervision.git"
 ```
 
 This also installs the required `ml-pipes` packages, including
@@ -48,7 +57,7 @@ Git dependency:
 
 ```toml
 dependencies = [
-    "ml-pipes-supervision @ git+https://github.com/requiem4machines/ml-pipes-supervision.git",
+    "ml-pipes-supervision @ git+https://github.com/trained-by-humans/ml-pipes-supervision.git",
 ]
 ```
 
