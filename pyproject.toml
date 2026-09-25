@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ml-pipes-supervision"
-version = "0.1.2rc1"
+version = "0.1.2rc2"
 description = "Roboflow Supervision and Inference compatibility wrappers for ml-pipes"
 readme = "README.md"
 license = "Apache-2.0"
