@@ -138,7 +138,7 @@ The inspection report shows every boundary in that flow.
 ## Tutorials
 
 Want to learn how to use Supervision with `ml-pipes`? Explore our
-[how-to guides](https://requiem4machines.github.io/ml-pipes-supervision/tutorials/detect_and_annotate/)
+[how-to guides](https://trained-by-humans.github.io/ml-pipes-supervision/tutorials/detect_and_annotate/)
 and [end-to-end examples](./examples/)!
 
 The GitHub Pages tutorials preserve the corresponding Supervision guides and
