@@ -37,11 +37,10 @@ compatibility matrix.
 
 ## Install
 
-Install directly from this repository in a [Python >=3.10](https://www.python.org/)
-environment:
+Install from PyPI in a [Python >=3.10](https://www.python.org/) environment:
 
 ```bash
-python -m pip install "ml-pipes-supervision @ git+https://github.com/trained-by-humans/ml-pipes-supervision.git"
+python -m pip install ml-pipes-supervision
 ```
 
 This also installs the required `ml-pipes` packages, including
@@ -52,12 +51,12 @@ The public operators are available from `ml_pipes.supervision`. Roboflow
 Inference and external tracker boundaries are available from
 `ml_pipes.supervision.inference` and `ml_pipes.supervision.trackers`.
 
-To use the integration from another project's `pyproject.toml`, add the same
-Git dependency:
+To use the integration from another project's `pyproject.toml`, add the PyPI
+package:
 
 ```toml
 dependencies = [
-    "ml-pipes-supervision @ git+https://github.com/trained-by-humans/ml-pipes-supervision.git",
+    "ml-pipes-supervision",
 ]
 ```
 

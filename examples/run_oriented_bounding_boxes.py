@@ -5,7 +5,7 @@ Port of Supervision's "Oriented Bounding Boxes" notebook. This example uses
 YOLO11-OBB, trained on DOTA aerial classes, to detect ships in the marina image.
 It requires ml-pipes-ultralytics:
 
-    python -m pip install "ml-pipes-ultralytics @ git+https://github.com/requiem4machines/ml-pipes-ultralytics.git"
+    python -m pip install ml-pipes-ultralytics
 
 Run from the repo root:
     python examples/run_oriented_bounding_boxes.py

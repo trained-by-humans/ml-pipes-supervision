@@ -12,7 +12,7 @@ This recipe ports Supervision's [Blurring Faces notebook](https://github.com/rob
 
 ```bash
 python -m pip install \
-  "ml-pipes-supervision @ git+https://github.com/requiem4machines/ml-pipes-supervision.git" \
+  ml-pipes-supervision \
   "mediapipe==0.10.21"
 ```
 

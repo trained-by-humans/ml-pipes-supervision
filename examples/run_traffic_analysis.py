@@ -9,7 +9,7 @@ The default input is the public ``traffic_analysis.mov`` video used by
 Supervision's traffic-analysis example. The matching custom YOLO weights are
 also downloaded when ``--weights`` is omitted. Install the optional tools:
 
-    python -m pip install gdown "ml-pipes-ultralytics @ git+https://github.com/requiem4machines/ml-pipes-ultralytics.git"
+    python -m pip install gdown ml-pipes-ultralytics
 """
 from __future__ import annotations
 
@@ -435,8 +435,7 @@ def build_frame_pipeline(
     except ImportError as error:
         raise RuntimeError(
             "Traffic analysis requires ml-pipes-ultralytics. Install it with "
-            "'python -m pip install \"ml-pipes-ultralytics @ "
-            "git+https://github.com/requiem4machines/ml-pipes-ultralytics.git\"'."
+            "'python -m pip install ml-pipes-ultralytics'."
         ) from error
 
     return Pipeline(

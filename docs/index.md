@@ -4,10 +4,10 @@
 capabilities as composable operators in [ml-pipes](https://github.com/trained-by-humans/ml-pipes).
 Supervision remains the source of detection, annotation, and zone logic.
 
-Install directly from the repository in a Python 3.10+ environment:
+Install from PyPI in a Python 3.10+ environment:
 
 ```bash
-python -m pip install "ml-pipes-supervision @ git+https://github.com/requiem4machines/ml-pipes-supervision.git"
+python -m pip install ml-pipes-supervision
 ```
 
 The package installs the required `ml-pipes` core and vision packages, plus

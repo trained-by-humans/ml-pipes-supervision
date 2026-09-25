@@ -22,7 +22,7 @@ Allows you to select detections that belong only to one selected class.
 
 === "ml-pipes"
 
-    ```{ .py hl_lines="9" }
+    ```{ .py hl_lines="8" }
     from ml_pipes.core import Pipeline
     from ml_pipes.supervision import Detections
 
@@ -60,7 +60,7 @@ Allows you to select detections that belong only to selected set of classes.
 
 === "ml-pipes"
 
-    ```{ .py hl_lines="12" }
+    ```{ .py hl_lines="12-14" }
     import numpy as np
 
     selected_classes = [0, 2, 3]
@@ -107,7 +107,7 @@ Allows you to select detections with specific confidence value, for example high
 
 === "ml-pipes"
 
-    ```{ .py hl_lines="9" }
+    ```{ .py hl_lines="8" }
     from ml_pipes.core import Pipeline
     from ml_pipes.supervision import Detections
 
@@ -145,7 +145,7 @@ Allows you to select detections based on their size. We define the area as the n
 
 === "ml-pipes"
 
-    ```{ .py hl_lines="9" }
+    ```{ .py hl_lines="8" }
     from ml_pipes.core import Pipeline
     from ml_pipes.supervision import Detections
 
@@ -183,7 +183,7 @@ Allows you to select detections based on their size in relation to the size of w
 
 === "ml-pipes"
 
-    ```{ .py hl_lines="12" }
+    ```{ .py hl_lines="11" }
     from ml_pipes.core import Pipeline
     from ml_pipes.supervision import Detections
 
@@ -226,7 +226,7 @@ Allows you to select detections based on their dimensions. The size of the bound
 
 === "ml-pipes"
 
-    ```{ .py hl_lines="5-7 14" }
+    ```{ .py hl_lines="3-6 12" }
     from ml_pipes.core import Pipeline
     from ml_pipes.supervision import Detections
     def filter_by_dimensions(detections):
@@ -270,7 +270,7 @@ Allows you to use `Detections` in combination with `PolygonZone` to weed out bou
 
 === "ml-pipes"
 
-    ```{ .py hl_lines="12" }
+    ```{ .py hl_lines="11" }
     import supervision as sv
 
     from ml_pipes.core import Pipeline
@@ -316,7 +316,7 @@ Supervision code.
 
 === "ml-pipes"
 
-    ```{ .py hl_lines="12" }
+    ```{ .py hl_lines="11-12" }
     import supervision as sv
 
     from ml_pipes.core import Pipeline

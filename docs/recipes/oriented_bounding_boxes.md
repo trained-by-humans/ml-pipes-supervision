@@ -12,8 +12,8 @@ This guide uses Ultralytics' [boats image](https://ultralytics.com/images/boats.
 
 ```bash
 python -m pip install \
-  "ml-pipes-supervision @ git+https://github.com/requiem4machines/ml-pipes-supervision.git" \
-  "ml-pipes-ultralytics @ git+https://github.com/requiem4machines/ml-pipes-ultralytics.git"
+  ml-pipes-supervision \
+  ml-pipes-ultralytics
 ```
 
 ## Run YOLO11-OBB
