@@ -31,8 +31,8 @@ classifiers = [
 requires-python = ">=3.10"
 dependencies = [
     "inference",
-    "ml-pipes-core @ git+https://github.com/trained-by-humans/ml-pipes.git@main#subdirectory=packages/core",
-    "ml-pipes-vision  @ git+https://github.com/trained-by-humans/ml-pipes.git@main#subdirectory=packages/vision",
+    "ml-pipes-core==0.1.2rc1",
+    "ml-pipes-vision==0.1.2rc1",
     "supervision>=0.30",
     "trackers",
 ]
@@ -58,6 +58,3 @@ include = [
     "pyproject.toml",
     "src/ml_pipes",
 ]
-
-[tool.hatch.metadata]
-allow-direct-references = true
