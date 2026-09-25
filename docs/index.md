@@ -11,7 +11,9 @@ python -m pip install ml-pipes-supervision
 ```
 
 The package installs the required `ml-pipes` core and vision packages, plus
-the Supervision, Roboflow Inference, and tracker runtime dependencies.
+the Supervision and tracker runtime dependencies. To use `RoboflowInference`,
+install the optional integration with
+`python -m pip install "ml-pipes-supervision[inference]"`.
 
 Start with [Detect and Annotate](tutorials/detect_and_annotate.md) for a
 pipeline-oriented port of a Supervision guide. See [Reference](reference.md)

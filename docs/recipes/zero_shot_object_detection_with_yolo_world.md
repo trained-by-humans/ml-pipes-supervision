@@ -9,7 +9,7 @@ This recipe builds the video pipeline in meaningful boundaries: prompt the model
 ## Install dependencies
 
 ```bash
-python -m pip install ml-pipes-supervision 'inference[yolo-world]'
+python -m pip install "ml-pipes-supervision[inference]" 'inference[yolo-world]'
 ```
 
 ## Start with the source video

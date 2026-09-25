@@ -7,7 +7,7 @@ Count vehicles as they cross a horizontal line. The pipeline adds one concern at
 ## Install dependencies
 
 ```bash
-python -m pip install ml-pipes-supervision
+python -m pip install "ml-pipes-supervision[inference]"
 ```
 
 ## Download the source video

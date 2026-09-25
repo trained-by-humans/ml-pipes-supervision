@@ -44,8 +44,15 @@ python -m pip install ml-pipes-supervision
 ```
 
 This also installs the required `ml-pipes` packages, including
-`ml-pipes-core` and `ml-pipes-vision`, plus the Supervision and Roboflow
-Inference and tracker runtime dependencies.
+`ml-pipes-core` and `ml-pipes-vision`, plus the Supervision and tracker runtime
+dependencies.
+
+To use `RoboflowInference` or run the inference-based examples, install the
+optional Inference integration:
+
+```bash
+python -m pip install "ml-pipes-supervision[inference]"
+```
 
 The public operators are available from `ml_pipes.supervision`. Roboflow
 Inference and external tracker boundaries are available from
@@ -56,7 +63,7 @@ package:
 
 ```toml
 dependencies = [
-    "ml-pipes-supervision",
+    "ml-pipes-supervision[inference]",
 ]
 ```
 

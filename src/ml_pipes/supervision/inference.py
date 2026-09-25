@@ -5,8 +5,17 @@ from typing import Any, cast, overload
 
 import numpy as np
 import numpy.typing as npt
-from inference import get_model
-from inference.core.models.base import Model
+
+try:
+    from inference import get_model
+    from inference.core.models.base import Model
+except ModuleNotFoundError as error:
+    if error.name == "inference":
+        raise ModuleNotFoundError(
+            "RoboflowInference requires the optional Inference dependency. "
+            "Install it with 'python -m pip install \"ml-pipes-supervision[inference]\"'."
+        ) from error
+    raise
 
 from ml_pipes.operator import Operator
 from ml_pipes.vision import ImagePayload
