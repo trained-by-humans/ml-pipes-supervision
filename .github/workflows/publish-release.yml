@@ -1,0 +1,58 @@
+name: Publish release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing staged release tag, for example v0.1.2rc1
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate staged release
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Match tag to package version
+        run: |
+          package_version="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          test "${RELEASE_TAG}" = "v${package_version}"
+
+  publish:
+    name: Publish to PyPI
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Download staged release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          mkdir dist
+          gh release download "${RELEASE_TAG}" --dir dist --pattern '*.tar.gz' --pattern '*.whl' --pattern SHA256SUMS
+          cd dist
+          sha256sum -c SHA256SUMS
+
+      - name: Publish verified artifacts
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
