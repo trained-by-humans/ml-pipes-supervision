@@ -166,7 +166,7 @@ frame, so the labels show elapsed time in the zone.
 ![Tracked people annotated with their time in the central zone](../assets/time_in_zone/result.jpg)
 
 The complete runnable version is available at
-[`examples/run_time_in_zone.py`](https://github.com/requiem4machines/ml-pipes-supervision/blob/main/examples/run_time_in_zone.py).
+[`examples/run_time_in_zone.py`](https://github.com/trained-by-humans/ml-pipes-supervision/blob/main/examples/run_time_in_zone.py).
 
 ## Pipeline Inspection
 

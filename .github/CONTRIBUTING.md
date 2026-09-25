@@ -9,7 +9,7 @@ Clone the repository, create and activate a Python 3.10+ virtual environment,
 then install the package in editable mode:
 
 ```bash
-git clone https://github.com/requiem4machines/ml-pipes-supervision.git
+git clone https://github.com/trained-by-humans/ml-pipes-supervision.git
 cd ml-pipes-supervision
 python -m venv .venv
 source .venv/bin/activate

@@ -102,7 +102,7 @@ giving the heatmap enough history to show the busiest paths.
 ![People activity heatmap 10 seconds into the video](../assets/heatmaps/result.jpg)
 
 The complete runnable version is available at
-[`examples/run_detection_heatmap.py`](https://github.com/requiem4machines/ml-pipes-supervision/blob/main/examples/run_detection_heatmap.py).
+[`examples/run_detection_heatmap.py`](https://github.com/trained-by-humans/ml-pipes-supervision/blob/main/examples/run_detection_heatmap.py).
 
 ## Pipeline Inspection
 
