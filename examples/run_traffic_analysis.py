@@ -360,7 +360,7 @@ class ZoneTransitionAnnotator:
         scene: npt.NDArray[np.uint8],
         detections: sv.Detections,
         metrics_by_zone: tuple[ZoneVisitMetrics, ...],
-    ) -> tuple[npt.NDArray[np.uint8], sv.Detections]:
+    ) -> tuple[npt.NDArray[np.uint8], sv.Detections, tuple[ZoneVisitMetrics, ...]]:
         if len(metrics_by_zone) != len(self.polygons):
             raise ValueError("The number of zone metrics must match the number of polygons.")
         annotated = scene.copy()
@@ -396,7 +396,7 @@ class ZoneTransitionAnnotator:
                     text_scale=self.text_scale,
                     text_thickness=self.text_thickness,
                 )
-        return annotated, detections
+        return annotated, detections, metrics_by_zone
 
 
 def build_zones(
@@ -426,7 +426,10 @@ def has_zone_visits(detections: sv.Detections) -> npt.NDArray[np.bool_]:
 def build_frame_pipeline(
     weights_path: Path,
     zones: Polygons,
-) -> Pipeline[npt.NDArray[np.uint8], tuple[npt.NDArray[np.uint8], sv.Detections]]:
+) -> Pipeline[
+    npt.NDArray[np.uint8],
+    tuple[npt.NDArray[np.uint8], sv.Detections, tuple[ZoneVisitMetrics, ...]],
+]:
     try:
         from ml_pipes.ultralytics import yolo
     except ImportError as error:
@@ -454,9 +457,9 @@ def build_frame_pipeline(
             Pick(0),
             Detections.Filter(has_zone_visits),
             Recall("source_frame", prepend=True),
-            TraceAnnotator(thickness=2, color=COLORS, custom_color_lookup=zone_visit_color_lookup),
             BoxAnnotator(color=COLORS, custom_color_lookup=zone_visit_color_lookup),
             LabelAnnotator(show_tracker_id=True, color=COLORS, custom_color_lookup=zone_visit_color_lookup),
+            TraceAnnotator(thickness=2, color=COLORS, custom_color_lookup=zone_visit_color_lookup),
             Recall("zone_visit_metrics"),
             ZoneTransitionAnnotator(zones),
             ImageWindow("Traffic Zone Visit Analytics", at=0),

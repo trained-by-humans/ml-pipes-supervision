@@ -218,7 +218,7 @@ def test_zone_transition_annotator_renders_explicit_metrics_without_counter_stat
         color=sv.ColorPalette.from_hex(["#E6194B", "#3CB44B"]),
         custom_color_lookup=zone_visit_color_lookup,
     )(frame, detections)
-    annotated, returned_detections = ZoneTransitionAnnotator(
+    annotated, returned_detections, returned_metrics = ZoneTransitionAnnotator(
         polygons,
         zone_labels=("North entry", "North exit"),
     )(
@@ -229,6 +229,7 @@ def test_zone_transition_annotator_renders_explicit_metrics_without_counter_stat
 
     assert annotated.shape == frame.shape
     assert returned_detections is boxed_detections
+    assert returned_metrics is metrics
 
 
 def test_zone_transition_annotator_requires_one_label_per_zone() -> None:

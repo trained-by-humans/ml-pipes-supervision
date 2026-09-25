@@ -38,6 +38,7 @@ nav:
       - Detection Heatmaps: tutorials/heatmaps.md
       - Count in Zone: tutorials/count_in_zone.md
       - Time in Zone: tutorials/time_in_zone.md
+      - Track Zone Visits: tutorials/track_zone_visits.md
   - Pipeline Recipes:
       - Overview: recipes/gallery.md
       - Blurring Faces: recipes/blurring_faces.md
