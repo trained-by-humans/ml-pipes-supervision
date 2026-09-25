@@ -1,4 +1,6 @@
-name: Publish release
+name: Releasing
+
+run-name: "Releasing: ${{ inputs.tag }}"
 
 on:
   workflow_dispatch:
@@ -48,11 +50,13 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
           mkdir dist
-          gh release download "${RELEASE_TAG}" --dir dist --pattern '*.tar.gz' --pattern '*.whl' --pattern SHA256SUMS
+          gh release download "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --dir dist --pattern '*.tar.gz' --pattern '*.whl' --pattern SHA256SUMS
           cd dist
           sha256sum -c SHA256SUMS
+          mkdir ../publish
+          mv *.tar.gz *.whl ../publish/
 
       - name: Publish verified artifacts
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: dist
+          packages-dir: publish
