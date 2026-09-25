@@ -122,7 +122,7 @@ class DetectionsFilter:
         if isinstance(filtered, np.ndarray) and filtered.dtype == bool:
             return cast(
                 sv.Detections,
-                detections.select(cast(npt.NDArray[np.generic], filtered)),
+                detections[cast(npt.NDArray[np.generic], filtered)],
             )
         raise TypeError(
             "Detections.Filter callback must return supervision.Detections or "
