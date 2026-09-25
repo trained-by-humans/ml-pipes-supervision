@@ -1,4 +1,4 @@
-name: Staging
+name: Stage
 
 run-name: "Staging: ${{ github.ref_name }}"
 
