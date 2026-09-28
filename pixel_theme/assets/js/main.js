@@ -111,6 +111,40 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  const trackedHeadings = Array.from(
+    document.querySelectorAll(".main h2[id], .main h3[id], .main h4[id], .main h5[id], .main h6[id]"),
+  );
+  let trackingFrame;
+
+  const updateHeadingFragment = () => {
+    trackingFrame = undefined;
+    const headerHeight = document.querySelector(".header")?.getBoundingClientRect().height ?? 0;
+    const tabsHeight = document.querySelector(".tabs")?.getBoundingClientRect().height ?? 0;
+    const offset = headerHeight + tabsHeight + 24;
+    let activeHeading;
+
+    trackedHeadings.forEach((heading) => {
+      if (heading.getBoundingClientRect().top <= offset) activeHeading = heading;
+    });
+
+    const hash = activeHeading ? `#${activeHeading.id}` : "";
+    if (window.location.hash === hash) return;
+
+    const url = `${window.location.pathname}${window.location.search}${hash}`;
+    window.history.replaceState(null, "", url);
+  };
+
+  if (trackedHeadings.length) {
+    const scheduleHeadingTracking = () => {
+      if (trackingFrame !== undefined) return;
+      trackingFrame = window.requestAnimationFrame(updateHeadingFragment);
+    };
+
+    window.addEventListener("scroll", scheduleHeadingTracking, { passive: true });
+    window.addEventListener("resize", scheduleHeadingTracking);
+    scheduleHeadingTracking();
+  }
+
   document.querySelectorAll(".main table").forEach((table) => {
     const shell = document.createElement("div");
     shell.className = "table-shell";

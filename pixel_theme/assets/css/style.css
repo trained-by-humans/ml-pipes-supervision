@@ -181,6 +181,11 @@ p, li { max-width: 760px; }
   vertical-align: 0.12em;
 }
 .headerlink::after { color: var(--green2); content: "#"; font-size: 1rem; }
+.main h2[id],
+.main h3[id],
+.main h4[id],
+.main h5[id],
+.main h6[id] { scroll-margin-top: 136px; }
 
 code { background: var(--surface2); border: 1px solid rgba(40, 124, 53, 0.45); font-family: "IBM Plex Mono", monospace; font-size: 0.9em; padding: 2px 5px; }
 pre, .highlight pre {
