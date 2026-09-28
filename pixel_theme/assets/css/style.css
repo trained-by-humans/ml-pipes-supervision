@@ -96,7 +96,6 @@ body {
   border: 2px solid var(--black);
   box-shadow: 5px 5px 0 var(--black);
   opacity: 0;
-  padding: 14px;
   pointer-events: none;
   position: absolute;
   right: 0;
@@ -107,6 +106,7 @@ body {
   width: min(30rem, calc(100vw - 2.25rem));
   z-index: 20;
 }
+.search-panel__controls { padding: 14px; }
 .search-shell:hover .search-panel,
 .search-shell:focus-within .search-panel,
 .search-shell.is-open .search-panel {
@@ -127,7 +127,7 @@ body {
 }
 .search-input:focus { background: #fff; outline: 3px solid var(--green); outline-offset: 2px; }
 .search-results:empty { display: none; }
-.search-results { border-top: 2px solid var(--black); margin-top: 14px; max-height: min(50vh, 24rem); overflow-y: auto; }
+.search-results { border-top: 2px solid var(--black); margin: 0; max-height: min(50vh, 24rem); overflow-y: auto; padding: 0 14px 14px; }
 .search-results article { border-bottom: 1px solid rgba(16, 20, 16, 0.3); padding: 12px 0; }
 .search-results article:last-child { border-bottom: 0; }
 .search-results h3 { font: 700 12px "IBM Plex Mono", monospace; margin: 0 0 4px; text-transform: uppercase; }
