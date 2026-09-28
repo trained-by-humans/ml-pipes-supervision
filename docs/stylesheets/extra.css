@@ -77,6 +77,7 @@
   border: 2px solid var(--black);
   border-radius: 0;
   box-shadow: 5px 5px 0 var(--black);
+  color: var(--ink);
   display: flex;
   flex-direction: column;
   min-height: 20rem;
@@ -92,18 +93,23 @@
 }
 
 .recipe-card--obb {
-  --recipe-accent: #a4520c;
+  --recipe-accent: #8c4305;
   --recipe-fill: #ffd399;
 }
 
+.recipe-card--line {
+  --recipe-accent: #1746a2;
+  --recipe-fill: #b9ddff;
+}
+
 .recipe-card--world {
-  --recipe-accent: #087786;
-  --recipe-fill: #bfe8ec;
+  --recipe-accent: #1d5a25;
+  --recipe-fill: #cce8b8;
 }
 
 .recipe-card--faces {
-  --recipe-accent: #7c3aed;
-  --recipe-wash: #f3e8ff;
+  --recipe-accent: #9d174d;
+  --recipe-fill: #f9c7df;
 }
 
 .recipe-card__eyebrow,
@@ -126,6 +132,7 @@
 }
 
 .recipe-card__summary {
+  color: var(--ink);
   font-size: 0.78rem;
   line-height: 1.55;
   margin-top: 0.9rem;
