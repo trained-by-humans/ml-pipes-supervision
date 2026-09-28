@@ -1,6 +1,6 @@
 site_name: ml-pipes-supervision
 site_description: Roboflow Supervision capabilities as composable ml-pipes operators.
-site_url: https://trained-by-humans.github.io/ml-pipes-supervision/
+site_url: https://supervision.ml-pipes.com/
 repo_name: ml-pipes-supervision
 
 theme:

@@ -1,4 +1,4 @@
-name: Deploy documentation
+name: Pages
 
 run-name: "Docs: ${{ github.ref_name }}"
 
