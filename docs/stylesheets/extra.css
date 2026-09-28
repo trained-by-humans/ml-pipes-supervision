@@ -1,45 +1,3 @@
-/* Match the selected tab label to Material's accent-colored selector. */
-.md-typeset .tabbed-labels {
-  --md-default-fg-color: var(--md-accent-fg-color);
-}
-
-/* Use the available page width instead of Material's default 61rem grid cap. */
-.md-main__inner,
-.md-header__inner,
-.md-grid {
-  max-width: 100%;
-}
-
-/* Match Supervision's document and site-title emphasis. */
-.md-header__title {
-  font-weight: 800;
-}
-
-.md-typeset h1 {
-  font-weight: 400;
-  margin-bottom: 1rem;
-}
-
-/* Center the desktop search field without changing Material's mobile header. */
-@media screen and (min-width: 60em) {
-  .md-header__inner {
-    position: relative;
-  }
-
-  .md-header__inner > .md-search {
-    left: 50%;
-    margin: 0;
-    position: absolute;
-    transform: translateX(-50%);
-    width: min(36rem, 45vw);
-  }
-
-  .md-header__inner > .md-search .md-search__inner {
-    max-width: none;
-    width: 100%;
-  }
-}
-
 /* Keep filter results visible beside their unfiltered source image. */
 .filter-comparison {
   display: grid;
@@ -53,7 +11,7 @@
 }
 
 .filter-comparison figcaption {
-  color: var(--md-default-fg-color--light);
+  color: var(--muted);
   font-size: 0.8rem;
   text-align: center;
 }
@@ -71,14 +29,13 @@
 }
 
 .recipe-card {
-  --recipe-accent: #0f766e;
-  --recipe-wash: #e7f5f1;
-  background:
-    linear-gradient(135deg, transparent 0 72%, color-mix(in srgb, var(--recipe-accent) 13%, transparent) 72% 100%),
-    var(--recipe-wash);
-  border: 1px solid color-mix(in srgb, var(--recipe-accent) 35%, var(--md-default-fg-color--lightest));
-  border-radius: 0.6rem;
-  box-shadow: 0.25rem 0.25rem 0 color-mix(in srgb, var(--recipe-accent) 26%, transparent);
+  --recipe-accent: #287c35;
+  --recipe-fill: #c8e6c9;
+  background: var(--recipe-fill);
+  border: 2px solid var(--black);
+  border-radius: 0;
+  box-shadow: 5px 5px 0 var(--black);
+  color: var(--ink);
   display: flex;
   flex-direction: column;
   min-height: 20rem;
@@ -88,30 +45,35 @@
 }
 
 .recipe-card:hover {
-  box-shadow: 0.45rem 0.45rem 0 color-mix(in srgb, var(--recipe-accent) 34%, transparent);
-  color: var(--md-default-fg-color);
-  transform: translate(-0.12rem, -0.12rem);
+  box-shadow: 7px 7px 0 var(--black);
+  color: var(--ink);
+  transform: translate(-2px, -2px);
 }
 
 .recipe-card--obb {
-  --recipe-accent: #b45309;
-  --recipe-wash: #fff4db;
+  --recipe-accent: #8c4305;
+  --recipe-fill: #ffd399;
+}
+
+.recipe-card--line {
+  --recipe-accent: #1746a2;
+  --recipe-fill: #b9ddff;
 }
 
 .recipe-card--world {
-  --recipe-accent: #1d4ed8;
-  --recipe-wash: #e8f0ff;
+  --recipe-accent: #1d5a25;
+  --recipe-fill: #cce8b8;
 }
 
 .recipe-card--faces {
-  --recipe-accent: #7c3aed;
-  --recipe-wash: #f3e8ff;
+  --recipe-accent: #9d174d;
+  --recipe-fill: #f9c7df;
 }
 
 .recipe-card__eyebrow,
 .recipe-card__tags {
   color: var(--recipe-accent);
-  font-family: var(--md-code-font-family);
+  font-family: "IBM Plex Mono", monospace;
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -119,7 +81,7 @@
 }
 
 .recipe-card__title {
-  color: var(--md-default-fg-color);
+  color: var(--ink);
   display: block;
   font-size: 1.35rem;
   font-weight: 700;
@@ -128,6 +90,7 @@
 }
 
 .recipe-card__summary {
+  color: var(--ink);
   font-size: 0.78rem;
   line-height: 1.55;
   margin-top: 0.9rem;
@@ -143,10 +106,6 @@
   font-size: 0.78rem;
   font-weight: 700;
   margin-top: 0.65rem;
-}
-
-[data-md-color-scheme="slate"] .recipe-card {
-  --recipe-wash: color-mix(in srgb, var(--recipe-accent) 16%, var(--md-default-bg-color));
 }
 
 @media screen and (max-width: 44.984375em) {
