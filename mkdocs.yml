@@ -3,13 +3,9 @@ site_description: Roboflow Supervision capabilities as composable ml-pipes opera
 site_url: https://supervision.ml-pipes.com/
 repo_name: ml-pipes-supervision
 
-extra:
-  footer_theme: Pixel Lab
-  footer_tagline: Build explicit ML pipelines
-
 theme:
-  name: null
-  custom_dir: pixel_theme
+  name: pixel-lab
+  footer_text: Build explicit ML pipelines
 
 nav:
   - Home: index.md
@@ -50,9 +46,6 @@ markdown_extensions:
       alternate_style: true
   - toc:
       permalink: true
-  - pymdownx.emoji:
-      emoji_index: !!python/name:material.extensions.emoji.twemoji
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span

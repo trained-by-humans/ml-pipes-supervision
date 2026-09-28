@@ -1,45 +1,3 @@
-/* Match the selected tab label to Material's accent-colored selector. */
-.md-typeset .tabbed-labels {
-  --md-default-fg-color: var(--md-accent-fg-color);
-}
-
-/* Use the available page width instead of Material's default 61rem grid cap. */
-.md-main__inner,
-.md-header__inner,
-.md-grid {
-  max-width: 100%;
-}
-
-/* Match Supervision's document and site-title emphasis. */
-.md-header__title {
-  font-weight: 800;
-}
-
-.md-typeset h1 {
-  font-weight: 400;
-  margin-bottom: 1rem;
-}
-
-/* Center the desktop search field without changing Material's mobile header. */
-@media screen and (min-width: 60em) {
-  .md-header__inner {
-    position: relative;
-  }
-
-  .md-header__inner > .md-search {
-    left: 50%;
-    margin: 0;
-    position: absolute;
-    transform: translateX(-50%);
-    width: min(36rem, 45vw);
-  }
-
-  .md-header__inner > .md-search .md-search__inner {
-    max-width: none;
-    width: 100%;
-  }
-}
-
 /* Keep filter results visible beside their unfiltered source image. */
 .filter-comparison {
   display: grid;
@@ -53,7 +11,7 @@
 }
 
 .filter-comparison figcaption {
-  color: var(--md-default-fg-color--light);
+  color: var(--muted);
   font-size: 0.8rem;
   text-align: center;
 }
