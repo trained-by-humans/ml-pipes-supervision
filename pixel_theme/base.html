@@ -103,7 +103,7 @@
           <div class="crumb">{{ page.meta.crumb | upper }}</div>
         {% endif %}
         {% if page %}{{ page.content }}{% endif %}
-        <footer class="footer">{{ config.site_name | upper }} · PIXEL VISION LAB · BUILD EXPLICIT ML PIPELINES</footer>
+        <footer class="footer">{{ config.site_name | upper }} · {{ config.extra.footer_theme | upper }} · {{ config.extra.footer_tagline | upper }}</footer>
       </main>
     </div>
 

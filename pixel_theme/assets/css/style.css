@@ -72,7 +72,7 @@ body {
   background: var(--surface);
   border: 2px solid var(--black);
   box-shadow: 3px 3px 0 var(--black);
-  cursor: default;
+  cursor: pointer;
   font: 700 11px "IBM Plex Mono", monospace;
   padding: 7px 12px;
 }
