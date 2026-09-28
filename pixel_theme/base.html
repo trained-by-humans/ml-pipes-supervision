@@ -12,6 +12,9 @@
   </head>
   <body>
     <header class="header">
+      <button class="header-btn header-btn--menu" id="nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="mobile-nav">
+        <span class="hamburger" aria-hidden="true"><span></span><span></span><span></span></span>
+      </button>
       <a class="brand" href="{{ nav.homepage.url | url }}">{{ config.site_name | upper }}</a>
       <div class="header-right">
         <div class="search-shell">
@@ -35,6 +38,34 @@
         </a>
       {% endfor %}
     </nav>
+
+    <div class="drawer-scrim" id="drawer-scrim"></div>
+    <aside class="mobile-nav" id="mobile-nav" aria-label="Site navigation" aria-hidden="true">
+      <div class="mobile-nav__header">
+        <span>Navigation</span>
+        <button class="header-btn mobile-nav__close" id="nav-close" type="button">× CLOSE</button>
+      </div>
+      <nav class="mobile-nav__content">
+        {% for nav_item in nav %}
+          {% set nav_url = nav_item.url or (nav_item.children[0].url if nav_item.children else '') %}
+          <a class="mobile-nav__top{% if nav_item.active %} active{% endif %}" href="{{ nav_url | url }}">{{ nav_item.title }}</a>
+          {% if nav_item.children %}
+            <ul class="mobile-nav__children">
+              {% for child in nav_item.children %}
+                {% if child.children %}
+                  <li class="mobile-nav__group">{{ child.title }}</li>
+                  {% for grandchild in child.children %}
+                    <li><a{% if grandchild.active %} class="active"{% endif %} href="{{ grandchild.url | url }}">{{ grandchild.title }}</a></li>
+                  {% endfor %}
+                {% else %}
+                  <li><a{% if child.active %} class="active"{% endif %} href="{{ child.url | url }}">{{ child.title }}</a></li>
+                {% endif %}
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endfor %}
+      </nav>
+    </aside>
 
     {% set sidebar = namespace(items=[]) %}
     {% for nav_item in nav %}
