@@ -62,6 +62,55 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  const copyText = async (value) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        return;
+      }
+    } catch (error) {
+      // Fall back for browsers that block the Clipboard API outside a secure context.
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand("copy");
+    textarea.remove();
+    if (!copied) throw new Error("Clipboard copy failed");
+  };
+
+  document.querySelectorAll(".main pre > code").forEach((code) => {
+    const block = code.closest(".highlight");
+    if (!block || block.querySelector(".code-copy")) return;
+
+    const button = document.createElement("button");
+    button.className = "code-copy";
+    button.type = "button";
+    button.textContent = "COPY";
+    button.setAttribute("aria-label", "Copy code to clipboard");
+    block.appendChild(button);
+
+    button.addEventListener("click", async () => {
+      try {
+        await copyText(code.innerText);
+        button.textContent = "COPIED";
+        button.classList.add("is-copied");
+      } catch (error) {
+        button.textContent = "FAILED";
+      }
+
+      window.setTimeout(() => {
+        button.textContent = "COPY";
+        button.classList.remove("is-copied");
+      }, 1600);
+    });
+  });
+
   document.querySelectorAll(".main table").forEach((table) => {
     const shell = document.createElement("div");
     shell.className = "table-shell";

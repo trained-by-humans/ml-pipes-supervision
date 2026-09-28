@@ -191,11 +191,25 @@ pre, .highlight pre {
   font: 13px/1.55 "IBM Plex Mono", monospace;
   margin: 18px 0 26px;
   overflow: auto;
-  padding: 20px;
+  padding: 20px 84px 20px 20px;
   max-width: calc(100% - 5px);
 }
 pre code, .highlight pre code { background: transparent; border: 0; color: inherit; padding: 0; }
-.highlight { background: transparent; }
+.highlight { background: transparent; position: relative; }
+.code-copy {
+  background: var(--surface);
+  border: 2px solid var(--black);
+  color: var(--black);
+  cursor: pointer;
+  font: 700 10px "IBM Plex Mono", monospace;
+  padding: 5px 7px;
+  position: absolute;
+  right: 12px;
+  top: 12px;
+}
+.code-copy:hover,
+.code-copy:focus-visible { background: var(--yellow); outline: 2px solid var(--green2); outline-offset: 2px; }
+.code-copy.is-copied { background: var(--green); }
 .highlight .k, .highlight .kn, .highlight .kd { color: #72d572; }
 .highlight .s, .highlight .sa, .highlight .s1, .highlight .s2 { color: #f5cf54; }
 .highlight .nf, .highlight .fm { color: #4cc4d2; }
