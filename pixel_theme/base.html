@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="{{ config.site_description }}">
+    <title>{% if page and page.title %}{{ page.title }} — {% endif %}{{ config.site_name }}</title>
+    <link rel="stylesheet" href="{{ 'assets/css/style.css' | url }}">
+    {% for style in config.extra_css %}
+      <link rel="stylesheet" href="{{ style | url }}">
+    {% endfor %}
+  </head>
+  <body>
+    <header class="header">
+      <a class="brand" href="{{ nav.homepage.url | url }}">{{ config.site_name | upper }}</a>
+      <div class="header-right">
+        <div class="search-shell">
+          <button class="header-btn header-btn--search" id="search-toggle" type="button" aria-expanded="false" aria-controls="search-panel">
+            ⌕ SEARCH
+          </button>
+          <div class="search-panel" id="search-panel">
+            <label class="search-label" for="mkdocs-search-query">SEARCH DOCUMENTATION</label>
+            <input id="mkdocs-search-query" class="search-input" type="search" autocomplete="off" placeholder="Type to search…">
+            <div id="mkdocs-search-results" class="search-results" data-no-results-text="No matching pages."></div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="Primary navigation">
+      {% for nav_item in nav %}
+        {% set nav_url = nav_item.url or (nav_item.children[0].url if nav_item.children else '') %}
+        <a class="tab{% if nav_item.active %} active{% endif %}" href="{{ nav_url | url }}">
+          {{ nav_item.title }}
+        </a>
+      {% endfor %}
+    </nav>
+
+    {% set sidebar = namespace(items=[]) %}
+    {% for nav_item in nav %}
+      {% if nav_item.active and nav_item.children %}
+        {% set sidebar.items = nav_item.children %}
+      {% endif %}
+    {% endfor %}
+
+    <div class="layout">
+      <aside class="sidebar" aria-label="Section navigation">
+        {% for section in sidebar.items %}
+          {% if section.children %}
+            <div class="side-title{% if not loop.first %} side-title--spaced{% endif %}">
+              {{ section.title }}
+            </div>
+            <ul class="nav">
+              {% for child in section.children %}
+                <li><a{% if child.active %} class="active"{% endif %} href="{{ child.url | url }}">{{ child.title }}</a></li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <ul class="nav">
+              <li><a{% if section.active %} class="active"{% endif %} href="{{ section.url | url }}">{{ section.title }}</a></li>
+            </ul>
+          {% endif %}
+        {% endfor %}
+      </aside>
+
+      <main class="main">
+        {% if page and page.meta and page.meta.crumb %}
+          <div class="crumb">{{ page.meta.crumb | upper }}</div>
+        {% endif %}
+        {% if page %}{{ page.content }}{% endif %}
+        <footer class="footer">{{ config.site_name | upper }} · PIXEL VISION LAB · BUILD EXPLICIT ML PIPELINES</footer>
+      </main>
+    </div>
+
+    <script>var base_url = {{ base_url | tojson }};</script>
+    <script src="{{ 'assets/js/main.js' | url }}"></script>
+    {% for script in config.extra_javascript %}
+      {{ script | script_tag }}
+    {% endfor %}
+  </body>
+</html>
