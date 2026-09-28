@@ -6,6 +6,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const mobileNav = document.querySelector("#mobile-nav");
   const navClose = document.querySelector("#nav-close");
   const drawerScrim = document.querySelector("#drawer-scrim");
+  const skipLink = document.querySelector(".skip-link");
+
+  if (skipLink) {
+    document.addEventListener("keydown", (event) => {
+      const activeElement = document.activeElement;
+      const enteringDocument = activeElement === document.body || activeElement === document.documentElement;
+      if (event.key === "Tab" && !event.shiftKey && enteringDocument) {
+        event.preventDefault();
+        skipLink.focus();
+      }
+    });
+  }
 
   const setSearchOpen = (open) => {
     if (!searchShell || !searchToggle) return;

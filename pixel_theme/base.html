@@ -11,6 +11,7 @@
     {% endfor %}
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="header">
       <button class="header-btn header-btn--menu" id="nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="mobile-nav">
         <span class="hamburger" aria-hidden="true"><span></span><span></span><span></span></span>
@@ -94,7 +95,7 @@
         {% endfor %}
       </aside>
 
-      <main class="main">
+      <main class="main" id="main-content">
         {% if page and page.meta and page.meta.crumb %}
           <div class="crumb">{{ page.meta.crumb | upper }}</div>
         {% endif %}

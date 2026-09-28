@@ -30,6 +30,22 @@ body {
   line-height: 1.65;
   overflow-x: clip;
 }
+.skip-link {
+  background: var(--yellow);
+  border: 2px solid var(--black);
+  box-shadow: 3px 3px 0 var(--black);
+  color: var(--black);
+  font: 700 11px "IBM Plex Mono", monospace;
+  left: 18px;
+  padding: 8px 10px;
+  position: fixed;
+  text-decoration: none;
+  top: 12px;
+  transform: translateY(-160%);
+  transition: transform 120ms ease;
+  z-index: 100;
+}
+.skip-link:focus { outline: 3px solid var(--green2); outline-offset: 2px; transform: translateY(0); }
 
 .header {
   align-items: center;
