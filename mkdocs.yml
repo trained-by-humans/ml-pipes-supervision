@@ -6,6 +6,10 @@ repo_name: ml-pipes-supervision
 theme:
   name: pixel-lab
   footer_text: Build explicit ML pipelines
+  header_background: "#8315F9"
+  accent_color: "#8315F9"
+  accent_dark_color: "#5E0AAE"
+  accent_foreground_color: "#FFFFFF"
 
 nav:
   - Home: index.md
