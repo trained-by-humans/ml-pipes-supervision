@@ -12,6 +12,13 @@ theme:
   accent_dark_color: "#5E0AAE"
   accent_foreground_color: "#FFFFFF"
 
+extra:
+  analytics:
+    provider: google
+    measurement_id: G-CE2N1XKFVT
+    consent_domain: ml-pipes.com
+    privacy_policy: https://ml-pipes.com/privacy/
+
 nav:
   - Home: index.md
   - Learn:
