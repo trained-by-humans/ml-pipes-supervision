@@ -69,6 +69,7 @@ extra_css:
   - stylesheets/extra.css
 
 markdown_extensions:
+  - mkdocs_pixel_lab.github_alerts
   - admonition
   - pymdownx.details
   - pymdownx.superfences
