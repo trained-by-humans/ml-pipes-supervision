@@ -23,7 +23,7 @@ extra:
     dropdown_label: Packages
     footer_label: Packages
     header_size: 4
-    footer_size: 7
+    footer_size: 8
     items:
       - title: Core
         url: https://ml-pipes.com/
@@ -49,6 +49,10 @@ extra:
         active: true
         icon: assets/site-navigation/supervision.svg
         icon_hover: assets/site-navigation/supervision.svg#icon-hover
+      - title: Ultralytics
+        url: https://ultralytics.ml-pipes.com/
+        icon: assets/site-navigation/ultralytics.svg
+        icon_hover: assets/site-navigation/ultralytics.svg#icon-hover
     catalog:
       title: All Packages →
       url: https://ml-pipes.com/PACKAGES/
