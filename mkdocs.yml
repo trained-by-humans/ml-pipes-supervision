@@ -5,7 +5,53 @@ repo_name: ml-pipes-supervision
 
 theme:
   name: pixel-lab
+  favicon: assets/favicon.svg
   footer_text: Build explicit ML pipelines
+  header_background: "#8315F9"
+  accent_color: "#8315F9"
+  accent_dark_color: "#5E0AAE"
+  accent_foreground_color: "#FFFFFF"
+
+extra:
+  analytics:
+    provider: google
+    measurement_id: G-CE2N1XKFVT
+    consent_domain: ml-pipes.com
+    privacy_policy: https://ml-pipes.com/privacy/
+  site_navigation:
+    header_mode: dropdown
+    dropdown_label: Packages
+    footer_label: Packages
+    header_size: 4
+    footer_size: 7
+    items:
+      - title: Core
+        url: https://ml-pipes.com/
+        icon: assets/site-navigation/core.svg
+      - title: Tensor
+        url: https://github.com/trained-by-humans/ml-pipes/tree/main/packages/tensor
+        icon: assets/site-navigation/tensor.svg
+        icon_hover: assets/site-navigation/tensor.svg#icon-hover
+      - title: ONNX
+        url: https://github.com/trained-by-humans/ml-pipes/tree/main/packages/onnx
+        icon: assets/site-navigation/onnx.svg
+        icon_hover: assets/site-navigation/onnx.svg#icon-hover
+      - title: Torch
+        url: https://github.com/trained-by-humans/ml-pipes/tree/main/packages/torch
+        icon: assets/site-navigation/torch.svg
+        icon_hover: assets/site-navigation/torch.svg#icon-hover
+      - title: Vision
+        url: https://github.com/trained-by-humans/ml-pipes/tree/main/packages/vision
+        icon: assets/site-navigation/vision.svg
+        icon_hover: assets/site-navigation/vision.svg#icon-hover
+      - title: Supervision
+        url: https://supervision.ml-pipes.com/
+        active: true
+        icon: assets/site-navigation/supervision.svg
+        icon_hover: assets/site-navigation/supervision.svg#icon-hover
+    catalog:
+      title: All Packages →
+      url: https://ml-pipes.com/PACKAGES/
 
 nav:
   - Home: index.md
@@ -36,6 +82,7 @@ extra_css:
   - stylesheets/extra.css
 
 markdown_extensions:
+  - mkdocs_pixel_lab.github_alerts
   - admonition
   - pymdownx.details
   - pymdownx.superfences

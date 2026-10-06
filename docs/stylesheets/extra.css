@@ -32,9 +32,9 @@
   --recipe-accent: #287c35;
   --recipe-fill: #c8e6c9;
   background: var(--recipe-fill);
-  border: 2px solid var(--black);
+  border: 2px solid var(--border);
   border-radius: 0;
-  box-shadow: 5px 5px 0 var(--black);
+  box-shadow: 5px 5px 0 var(--shadow);
   color: var(--ink);
   display: flex;
   flex-direction: column;
@@ -45,7 +45,7 @@
 }
 
 .recipe-card:hover {
-  box-shadow: 7px 7px 0 var(--black);
+  box-shadow: 7px 7px 0 var(--shadow);
   color: var(--ink);
   transform: translate(-2px, -2px);
 }
