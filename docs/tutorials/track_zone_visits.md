@@ -1,4 +1,5 @@
 ---
+title: Track Zone Visits with Supervision
 comments: true
 description: Track ordered visits between video zones and measure vehicle movement with Supervision and ml-pipes.
 date_modified: 2026-09-12

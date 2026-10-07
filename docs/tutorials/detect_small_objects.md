@@ -1,6 +1,8 @@
 ---
+title: Detect Small Objects with Supervision
 comments: true
-description: Detect small objects in images by applying SAHI inference slicing with supervision's InferenceSlicer — improve recall for tiny targets.
+description: >-
+  Detect small objects using tiled inference with Supervision and ml-pipes. Compare full-image predictions with sliced detection and stitch the results.
 authors:
   - name: Piotr Skalski
     role: Computer Vision Engineer, Roboflow

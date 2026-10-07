@@ -1,6 +1,8 @@
 ---
+title: Track Objects in Video with Supervision
 comments: true
-description: Track objects across video frames with ByteTrack in supervision and ml-pipes.
+description: >-
+  Track detected objects across video frames with Supervision and ml-pipes, preserving tracker IDs and annotating object motion with ByteTrack.
 authors:
   - name: Piotr Skalski
     role: Computer Vision Engineer, Roboflow

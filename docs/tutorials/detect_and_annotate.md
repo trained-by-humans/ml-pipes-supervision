@@ -1,4 +1,5 @@
 ---
+title: Detect and Annotate with Supervision
 comments: true
 description: Learn to load model predictions, create Detections objects, and annotate images with bounding boxes, labels, and masks using supervision.
 authors:

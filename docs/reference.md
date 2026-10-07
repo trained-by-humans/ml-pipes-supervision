@@ -1,3 +1,9 @@
+---
+title: Supervision Operator Reference
+description: >-
+  Reference for ml_pipes.supervision operators, including detection conversion, annotation, tracking, zones, timers, image views, and Roboflow inference.
+---
+
 # ml-pipes-supervision Index
 
 This page catalogs the Supervision compatibility surface in

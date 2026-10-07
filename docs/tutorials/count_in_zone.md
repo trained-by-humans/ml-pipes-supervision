@@ -1,6 +1,8 @@
 ---
+title: Count Objects in Zones with Supervision
 comments: true
-description: Count objects entering a polygon zone in images and video using supervision's PolygonZone — measure throughput and density in any region.
+description: >-
+  Count objects in polygon zones with Supervision and ml-pipes, using detections and video frames to monitor vehicle occupancy in regions of interest.
 authors:
   - name: Piotr Skalski
     role: Computer Vision Engineer, Roboflow

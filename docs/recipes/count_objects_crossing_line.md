@@ -1,3 +1,9 @@
+---
+title: Count Line Crossings with Supervision
+description: >-
+  Build an ml-pipes video pipeline with Supervision to detect and track vehicles, count directional line crossings, draw motion traces, and save output.
+---
+
 # Count Objects Crossing a Line
 
 Pipeline source: `examples/run_count_objects_crossing_line.py`

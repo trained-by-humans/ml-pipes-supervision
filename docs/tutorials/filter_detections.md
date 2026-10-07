@@ -1,6 +1,8 @@
 ---
+title: Filter Detections with Supervision
 comments: true
-description: Filter and query detection results by class, confidence, or spatial overlap using supervision's Detections API — clean predictions in one line.
+description: >-
+  Filter Supervision detections by class, confidence, area, dimensions, and polygon zones using native queries and composable ml-pipes operators.
 authors:
   - name: Piotr Skalski
     role: Computer Vision Engineer, Roboflow

@@ -1,4 +1,5 @@
 ---
+title: Save Detections to CSV or JSON with Supervision
 comments: true
 description: Save object detection results to CSV or JSON with supervision's CSVSink and JSONSink — export predictions for analysis and downstream pipelines.
 authors:

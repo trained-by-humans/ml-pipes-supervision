@@ -1,3 +1,9 @@
+---
+title: Zero-Shot Detection with YOLO-World and Supervision
+description: >-
+  Build an ml-pipes video pipeline with YOLO-World and Supervision for prompted detection, duplicate removal, annotation, and filtering oversized predictions.
+---
+
 # Zero-Shot Object Detection with YOLO-World
 
 Pipeline source: `examples/run_zero_shot_object_detection.py`

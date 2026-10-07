@@ -1,3 +1,9 @@
+---
+title: Supervision and Tracker API Coverage
+description: >-
+  Compare Supervision and Roboflow tracker APIs with ml-pipes operators, distinguishing pipeline steps, native configuration and data, and unsupported APIs.
+---
+
 # Supervision Coverage
 
 ## Roles
