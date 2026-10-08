@@ -1,7 +1,18 @@
-![python-version](https://img.shields.io/pypi/pyversions/supervision)
-[![Supervision Coverage](https://img.shields.io/badge/supervision-0.30.0-purple)](./docs/coverage.md)
+<p align="center">
+  <img src="assets/stacked-title.svg" alt="ml-pipes-supervision stacked-text logo" width="640">
+</p>
 
-# ml-pipes-supervision
+<p align="center">
+  <a href="https://pypi.org/project/ml-pipes-supervision/"><img src="https://img.shields.io/pypi/v/ml-pipes-supervision?style=flat-square&amp;logo=pypi&amp;logoColor=white&amp;label=PyPI&amp;color=FFAC00" alt="Latest PyPI release"></a>
+  <a href="https://pypi.org/project/ml-pipes-supervision/"><img src="https://img.shields.io/badge/Python-3.10%2B-009EE5?style=flat-square&amp;logo=python&amp;logoColor=white" alt="Python 3.10 or newer"></a>
+  <a href="https://github.com/trained-by-humans/ml-pipes-supervision/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/ml-pipes-supervision?style=flat-square&amp;label=License&amp;color=287C35" alt="Apache 2.0 license"></a>
+  <a href="docs/coverage.md"><img src="https://img.shields.io/badge/Supervision-0.30.0-A000FF?style=flat-square" alt="Supervision 0.30.0 API coverage"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/roboflow/supervision">Roboflow Supervision</a> capabilities as composable operators in <a href="https://github.com/trained-by-humans/ml-pipes">ml-pipes</a>.<br>
+  Build explicit computer-vision pipelines for detection, annotation, tracking, and zone counting.
+</p>
 
 > [!IMPORTANT]
 > `ml-pipes-supervision` remains a community-maintained operator package
@@ -11,12 +22,6 @@
 >
 > For contributions, issues, and project decisions, use this repository's
 > maintainers and issue tracker.
-
-## Hello
-
-[Supervision](https://github.com/roboflow/supervision) is your essential toolkit for computer vision. From data loading to real-time zone counting, it provides the building blocks so you can focus on building applications around your models.
-`ml-pipes-supervision` provides `Supervision`
-capabilities as composable operators in [ml-pipes](https://github.com/trained-by-humans/ml-pipes).
 
 ## Coverage
 
