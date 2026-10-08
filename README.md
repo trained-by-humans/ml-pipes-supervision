@@ -3,10 +3,10 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/ml-pipes-supervision/"><img src="https://img.shields.io/pypi/v/ml-pipes-supervision?style=flat-square&amp;logo=pypi&amp;logoColor=white&amp;label=PyPI&amp;color=FFAC00" alt="Latest PyPI release"></a>
-  <a href="https://pypi.org/project/ml-pipes-supervision/"><img src="https://img.shields.io/badge/Python-3.10%2B-009EE5?style=flat-square&amp;logo=python&amp;logoColor=white" alt="Python 3.10 or newer"></a>
+  <a href="https://pypi.org/project/ml-pipes-supervision/"><img src="https://img.shields.io/pypi/v/ml-pipes-supervision?style=flat-square&amp;logo=pypi&amp;logoColor=white&amp;label=PyPI&amp;color=C48800" alt="Latest PyPI release"></a>
+  <a href="https://pypi.org/project/ml-pipes-supervision/"><img src="https://img.shields.io/badge/Python-3.10%2B-2377C8?style=flat-square&amp;logo=python&amp;logoColor=white" alt="Python 3.10 or newer"></a>
   <a href="https://github.com/trained-by-humans/ml-pipes-supervision/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/ml-pipes-supervision?style=flat-square&amp;label=License&amp;color=287C35" alt="Apache 2.0 license"></a>
-  <a href="docs/coverage.md"><img src="https://img.shields.io/badge/Supervision-0.30.0-A000FF?style=flat-square" alt="Supervision 0.30.0 API coverage"></a>
+  <a href="docs/coverage.md"><img src="https://img.shields.io/badge/Supervision-0.30.0-7110D4?style=flat-square" alt="Supervision 0.30.0 API coverage"></a>
 </p>
 
 <p align="center">
