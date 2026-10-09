@@ -45,6 +45,10 @@ All annotators preserve the detection handoff: `(scene, detections)` ->
 Supervision, so annotation never mutates the source image. Constructor values
 configure the underlying Supervision annotator.
 
+`TraceAnnotator` and `HeatMapAnnotator` retain state across frames. Call the
+operator's `reset()` between independent videos to clear accumulated trajectories
+or heat without replacing the configured annotator.
+
 `LabelAnnotator` and `RichLabelAnnotator` can both compose class,
 confidence, and tracker-ID labels with the `show_*` options, or create labels
 from any detection data with `label_formatter=...`. The callback receives a

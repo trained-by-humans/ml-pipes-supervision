@@ -1,3 +1,5 @@
+from unittest.mock import create_autospec
+
 import numpy as np
 import pytest
 import supervision as sv
@@ -5,8 +7,10 @@ import supervision as sv
 from ml_pipes.supervision import (
     BoxAnnotator,
     Detection,
+    HeatMapAnnotator,
     LabelAnnotator,
     RichLabelAnnotator,
+    TraceAnnotator,
 )
 
 
@@ -82,3 +86,19 @@ def test_rich_label_annotator_passes_each_detection_to_callback() -> None:
 def test_rich_label_annotator_rejects_callback_with_standard_fields() -> None:
     with pytest.raises(ValueError, match="cannot be combined"):
         RichLabelAnnotator(label_formatter=lambda _: "label", show_class=True)
+
+
+@pytest.mark.parametrize("operator_type", [TraceAnnotator, HeatMapAnnotator])
+def test_stateful_annotator_delegates_reset(
+    operator_type: type[TraceAnnotator] | type[HeatMapAnnotator],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    operator = operator_type()
+    upstream = operator.annotator
+    reset = create_autospec(upstream.reset)
+    monkeypatch.setattr(upstream, "reset", reset)
+
+    assert operator.reset() is None
+
+    reset.assert_called_once_with()
+    assert operator.annotator is upstream
