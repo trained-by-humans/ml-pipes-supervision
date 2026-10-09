@@ -25,7 +25,7 @@ To generate predictions for saving, initialize your model and iterate over video
 
     pipeline = Pipeline(
         [
-            RoboflowInference(model_id="yolov8n-640"),
+            RoboflowInference(model_id="rfdetr-small"),
             Select(0),
             Detections.FromInference(),
         ]
@@ -43,7 +43,7 @@ To generate predictions for saving, initialize your model and iterate over video
     import supervision as sv
     from inference import get_model
 
-    model = get_model(model_id="yolov8n-640")
+    model = get_model(model_id="rfdetr-small")
     frames_generator = sv.get_video_frames_generator("<SOURCE_VIDEO_PATH>")
 
     for frame in frames_generator:
@@ -67,7 +67,7 @@ To save detections to a `.CSV` file, open our [`sv.CSVSink`](https://supervision
 
     pipeline = Pipeline(
         [
-            RoboflowInference(model_id="yolov8n-640"),
+            RoboflowInference(model_id="rfdetr-small"),
             Select(0),
             Detections.FromInference(),
         ]
@@ -87,7 +87,7 @@ To save detections to a `.CSV` file, open our [`sv.CSVSink`](https://supervision
     import supervision as sv
     from inference import get_model
 
-    model = get_model(model_id="yolov8n-640")
+    model = get_model(model_id="rfdetr-small")
     frames_generator = sv.get_video_frames_generator("<SOURCE_VIDEO_PATH>")
 
     with sv.CSVSink("<TARGET_CSV_PATH>") as sink:
@@ -120,7 +120,7 @@ Besides regular fields in [`sv.Detections`](https://supervision.roboflow.com/lat
 
     pipeline = Pipeline(
         [
-            RoboflowInference(model_id="yolov8n-640"),
+            RoboflowInference(model_id="rfdetr-small"),
             Select(0),
             Detections.FromInference(),
         ]
@@ -140,7 +140,7 @@ Besides regular fields in [`sv.Detections`](https://supervision.roboflow.com/lat
     import supervision as sv
     from inference import get_model
 
-    model = get_model(model_id="yolov8n-640")
+    model = get_model(model_id="rfdetr-small")
     frames_generator = sv.get_video_frames_generator("<SOURCE_VIDEO_PATH>")
 
     with sv.CSVSink("<TARGET_CSV_PATH>") as sink:
@@ -173,7 +173,7 @@ If you prefer to save the result in a `.JSON` file instead of a `.CSV` file, all
 
     pipeline = Pipeline(
         [
-            RoboflowInference(model_id="yolov8n-640"),
+            RoboflowInference(model_id="rfdetr-small"),
             Select(0),
             Detections.FromInference(),
         ]
@@ -193,7 +193,7 @@ If you prefer to save the result in a `.JSON` file instead of a `.CSV` file, all
     import supervision as sv
     from inference import get_model
 
-    model = get_model(model_id="yolov8n-640")
+    model = get_model(model_id="rfdetr-small")
     frames_generator = sv.get_video_frames_generator("<SOURCE_VIDEO_PATH>")
 
     with sv.JSONSink("<TARGET_JSON_PATH>") as sink:

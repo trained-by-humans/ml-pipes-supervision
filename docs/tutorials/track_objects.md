@@ -41,7 +41,7 @@ Run detection on each video frame, then draw boxes on the resulting scene.
     pipeline = Pipeline(
         [
             Store("source_frame"),
-            RoboflowInference(model_id="yolov8n-640"),
+            RoboflowInference(model_id="rfdetr-small"),
             Select(0),
             Detections.FromInference(),
             Recall("source_frame", prepend=True),
@@ -67,7 +67,7 @@ Run detection on each video frame, then draw boxes on the resulting scene.
     import supervision as sv
     from inference.models.utils import get_roboflow_model
 
-    model = get_roboflow_model(model_id="yolov8n-640", api_key="<ROBOFLOW_API_KEY>")
+    model = get_roboflow_model(model_id="rfdetr-small", api_key="<ROBOFLOW_API_KEY>")
     box_annotator = sv.BoxAnnotator()
 
     def callback(frame: np.ndarray, _: int) -> np.ndarray:
@@ -106,7 +106,7 @@ After inference, update a stateful tracker with each frame's detections. The
     pipeline = Pipeline(
         [
             Store("source_frame"),
-            RoboflowInference(model_id="yolov8n-640"),
+            RoboflowInference(model_id="rfdetr-small"),
             Select(0),
             Detections.FromInference(),
             ByteTrack(),
@@ -134,7 +134,7 @@ After inference, update a stateful tracker with each frame's detections. The
     import trackers
     from inference.models.utils import get_roboflow_model
 
-    model = get_roboflow_model(model_id="yolov8n-640", api_key="<ROBOFLOW_API_KEY>")
+    model = get_roboflow_model(model_id="rfdetr-small", api_key="<ROBOFLOW_API_KEY>")
     tracker = trackers.ByteTrackTracker()
     box_annotator = sv.BoxAnnotator()
 
@@ -170,7 +170,7 @@ updates the detections.
     pipeline = Pipeline(
         [
             Store("source_frame"),
-            RoboflowInference(model_id="yolov8n-640"),
+            RoboflowInference(model_id="rfdetr-small"),
             Select(0),
             Detections.FromInference(),
             ByteTrack(),
@@ -199,7 +199,7 @@ updates the detections.
     import trackers
     from inference.models.utils import get_roboflow_model
 
-    model = get_roboflow_model(model_id="yolov8n-640", api_key="<ROBOFLOW_API_KEY>")
+    model = get_roboflow_model(model_id="rfdetr-small", api_key="<ROBOFLOW_API_KEY>")
     tracker = trackers.ByteTrackTracker()
     box_annotator = sv.BoxAnnotator()
     label_annotator = sv.LabelAnnotator()
@@ -250,7 +250,7 @@ label layers.
     pipeline = Pipeline(
         [
             Store("source_frame"),
-            RoboflowInference(model_id="yolov8n-640"),
+            RoboflowInference(model_id="rfdetr-small"),
             Select(0),
             Detections.FromInference(),
             ByteTrack(),
@@ -280,7 +280,7 @@ label layers.
     import trackers
     from inference.models.utils import get_roboflow_model
 
-    model = get_roboflow_model(model_id="yolov8n-640", api_key="<ROBOFLOW_API_KEY>")
+    model = get_roboflow_model(model_id="rfdetr-small", api_key="<ROBOFLOW_API_KEY>")
     tracker = trackers.ByteTrackTracker()
     box_annotator = sv.BoxAnnotator()
     label_annotator = sv.LabelAnnotator()
@@ -339,7 +339,7 @@ Reuse the same pipeline or stateful objects for the whole video.
     pipeline = Pipeline(
         [
             Store("source_frame"),
-            RoboflowInference(model_id="yolov8n-640"),
+            RoboflowInference(model_id="rfdetr-small"),
             Select(0),
             Detections.FromInference(),
             ByteTrack(),
@@ -370,7 +370,7 @@ Reuse the same pipeline or stateful objects for the whole video.
     import trackers
     from inference.models.utils import get_roboflow_model
 
-    model = get_roboflow_model(model_id="yolov8n-640", api_key="<ROBOFLOW_API_KEY>")
+    model = get_roboflow_model(model_id="rfdetr-small", api_key="<ROBOFLOW_API_KEY>")
     tracker = trackers.ByteTrackTracker()
     smoother = sv.DetectionsSmoother(length=5)
     box_annotator = sv.BoxAnnotator()

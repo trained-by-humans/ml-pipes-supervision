@@ -6,7 +6,9 @@ description: >-
 
 # Detect Small Objects
 
-This guide shows how to detect small objects with [Inference](https://github.com/roboflow/inference) using [`InferenceSlicer`](https://supervision.roboflow.com/latest/detection/tools/inference_slicer/#supervision.detection.tools.inference_slicer.InferenceSlicer).
+This guide detects small objects with [RF-DETR](https://github.com/roboflow/rf-detr)
+through [Inference](https://github.com/roboflow/inference), using
+[`InferenceSlicer`](https://supervision.roboflow.com/latest/detection/tools/inference_slicer/#supervision.detection.tools.inference_slicer.InferenceSlicer).
 
 <video controls>
     <source src="https://media.roboflow.com/supervision_detect_small_objects_example.mp4" type="video/mp4">
@@ -33,7 +35,7 @@ Running a standard detection model on the full image establishes a baseline for 
             Decode(),
             ImageToArray(),
             Store("source_image"),
-            RoboflowInference(model_id="yolov8x-640"),
+            RoboflowInference(model_id="rfdetr-medium"),
             Select(0),
             Detections.FromInference(),
             Recall("source_image", prepend=True),
@@ -53,7 +55,7 @@ Running a standard detection model on the full image establishes a baseline for 
     import supervision as sv
     from inference import get_model
 
-    model = get_model(model_id="yolov8x-640")
+    model = get_model(model_id="rfdetr-medium")
     image = cv2.imread("<SOURCE_IMAGE_PATH>")
     results = model.infer(image)[0]
     detections = sv.Detections.from_inference(results)
@@ -77,6 +79,9 @@ Running a standard detection model on the full image establishes a baseline for 
 ## Input Resolution
 
 Modifying the input resolution of images before detection can enhance small object identification at the cost of processing speed and increased memory usage. This method is less effective for ultra-high-resolution images (4K and above).
+
+This resolution-specific comparison keeps the YOLOv8 1280 alias used in the
+[upstream Inference example](https://supervision.roboflow.com/0.30.9/how_to/detect_small_objects/#input-resolution).
 
 === "ml-pipes"
 
@@ -160,7 +165,7 @@ The `ml-pipes` examples set those values explicitly.
             Store("tile_rects", source=1),
             Pick(0),
             Scatter(max_concurrency=4),
-            RoboflowInference(model_id="yolov8x-640"),
+            RoboflowInference(model_id="rfdetr-medium"),
             Select(0),
             Detections.FromInference(),
             Gather(),
@@ -189,7 +194,7 @@ The `ml-pipes` examples set those values explicitly.
     import supervision as sv
     from inference import get_model
 
-    model = get_model(model_id="yolov8x-640")
+    model = get_model(model_id="rfdetr-medium")
     image = cv2.imread("<SOURCE_IMAGE_PATH>")
 
     def callback(image_slice: np.ndarray) -> sv.Detections:
@@ -235,7 +240,7 @@ set `compact_masks=True` in the conversion stage or callback.
             Store("tile_rects", source=1),
             Pick(0),
             Scatter(max_concurrency=4),
-            RoboflowInference(model_id="yolov8x-seg-640"),
+            RoboflowInference(model_id="rfdetr-seg-medium"),
             Select(0),
             Detections.FromInference(),
             Gather(),
@@ -264,7 +269,7 @@ set `compact_masks=True` in the conversion stage or callback.
     import supervision as sv
     from inference import get_model
 
-    model = get_model(model_id="yolov8x-seg-640")
+    model = get_model(model_id="rfdetr-seg-medium")
     image = cv2.imread("<SOURCE_IMAGE_PATH>")
 
     def callback(image_slice: np.ndarray) -> sv.Detections:

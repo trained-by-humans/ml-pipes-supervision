@@ -1,5 +1,5 @@
 """
-YOLOv8 count-in-zone video processing through Roboflow Inference and Supervision.
+RF-DETR count-in-zone video processing through Roboflow Inference and Supervision.
 
 Run from the repo root:
     python examples/run_count_in_zone.py
@@ -29,7 +29,7 @@ from ml_pipes.supervision import (
 from ml_pipes.core import Pipeline
 from ml_pipes.standard import Pick, Recall, Select, Store
 
-DEFAULT_MODEL_ID = "yolov8s-640"
+DEFAULT_MODEL_ID = "rfdetr-medium"
 DEFAULT_VIDEO_ASSET = VideoAssets.VEHICLES_2
 DEFAULT_OUTPUT_NAME = "result.mp4"
 DEFAULT_ZONE_POLYGONS = (
@@ -115,7 +115,7 @@ def main() -> int:
     parser.add_argument(
         "--model-id",
         default=DEFAULT_MODEL_ID,
-        help="Roboflow Inference model id. Defaults to the guide's YOLOv8s equivalent.",
+        help="Roboflow Inference model id. Defaults to the RF-DETR medium pretrained alias.",
     )
     parser.add_argument(
         "--api-key",

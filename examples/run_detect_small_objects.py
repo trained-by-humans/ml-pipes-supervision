@@ -4,7 +4,7 @@ Small-object detection through tiled Roboflow Inference and Supervision.
 Run from the repo root:
     python examples/run_detect_small_objects.py
     python examples/run_detect_small_objects.py --input path/to/photo.jpg
-    python examples/run_detect_small_objects.py --model-id yolov8s-640 --slice-wh 320 320 --overlap-wh 80 80
+    python examples/run_detect_small_objects.py --model-id rfdetr-small --slice-wh 320 320 --overlap-wh 80 80
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ from ml_pipes.core import Pipeline
 from ml_pipes.standard import Gather, Pick, Recall, Scatter, Select, Store
 from ml_pipes.vision import Decode, LoadFile, Tile
 
-DEFAULT_MODEL_ID = "yolov8x-640"
+DEFAULT_MODEL_ID = "rfdetr-medium"
 DEFAULT_SLICE_WH = (320, 320)
 DEFAULT_OVERLAP_WH = (80, 80)
 DEFAULT_MAX_CONCURRENCY = 4
@@ -81,7 +81,7 @@ def main() -> int:
     parser.add_argument(
         "--model-id",
         default=DEFAULT_MODEL_ID,
-        help="Roboflow Inference model id. Defaults to the Roboflow-owned YOLOv8x alias.",
+        help="Roboflow Inference model id. Defaults to the RF-DETR medium pretrained alias.",
     )
     parser.add_argument(
         "--api-key",

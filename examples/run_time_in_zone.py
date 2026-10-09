@@ -32,7 +32,7 @@ from ml_pipes.supervision import (
 from ml_pipes.core import Pipeline
 from ml_pipes.standard import Recall, Select, Store
 
-DEFAULT_MODEL_ID = "yolov8n-640"
+DEFAULT_MODEL_ID = "rfdetr-small"
 DEFAULT_VIDEO_ASSET = VideoAssets.PEOPLE_WALKING
 ZONE_FRACTIONS = ((0.2, 0.2), (0.8, 0.2), (0.8, 0.8), (0.2, 0.8))
 
@@ -85,7 +85,7 @@ def main() -> int:
     parser.add_argument(
         "--model-id",
         default=DEFAULT_MODEL_ID,
-        help="Roboflow Inference model id. Defaults to the Roboflow-owned YOLOv8n alias.",
+        help="Roboflow Inference model id. Defaults to the RF-DETR small pretrained alias.",
     )
     parser.add_argument(
         "--api-key",

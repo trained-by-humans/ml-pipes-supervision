@@ -41,7 +41,7 @@ from ml_pipes.supervision.trackers import ByteTrack
 pipeline = Pipeline(
     [
         Store("source_frame"),
-        RoboflowInference(model_id="yolov8n-640"),
+        RoboflowInference(model_id="rfdetr-small"),
         Select(0),
         Detections.FromInference(),
         ByteTrack(),
@@ -83,7 +83,7 @@ zone = sv.PolygonZone(polygon=polygon)
 pipeline = Pipeline(
     [
         Store("source_frame"),
-        RoboflowInference(model_id="yolov8n-640"),
+        RoboflowInference(model_id="rfdetr-small"),
         Select(0),
         Detections.FromInference(),
         ByteTrack(),
@@ -120,7 +120,7 @@ from ml_pipes.supervision import (
 pipeline = Pipeline(
     [
         Store("source_frame"),
-        RoboflowInference(model_id="yolov8n-640"),
+        RoboflowInference(model_id="rfdetr-small"),
         Select(0),
         Detections.FromInference(),
         ByteTrack(),

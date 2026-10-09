@@ -42,7 +42,7 @@ from ml_pipes.standard import Select
 from ml_pipes.supervision import Detections
 from ml_pipes.supervision.inference import RoboflowInference
 
-model_id = "yolo11x-640"
+model_id = "rfdetr-medium"
 
 detection_pipeline = Pipeline(
     [

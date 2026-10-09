@@ -1,5 +1,5 @@
 """
-YOLOv8 video detection saved to CSV through Roboflow Inference and Supervision.
+RF-DETR video detection saved to CSV through Roboflow Inference and Supervision.
 
 Run from the repo root:
     python examples/run_save_detections.py
@@ -26,7 +26,7 @@ from ml_pipes.supervision import (
 from ml_pipes.core import Pipeline
 from ml_pipes.standard import Select
 
-DEFAULT_MODEL_ID = "yolov8n-640"
+DEFAULT_MODEL_ID = "rfdetr-small"
 DEFAULT_VIDEO_ASSET = VideoAssets.PEOPLE_WALKING
 
 
@@ -52,7 +52,7 @@ def main() -> int:
     parser.add_argument(
         "--model-id",
         default=DEFAULT_MODEL_ID,
-        help="Roboflow Inference model id. Defaults to the Roboflow-owned YOLOv8n alias.",
+        help="Roboflow Inference model id. Defaults to the RF-DETR small pretrained alias.",
     )
     parser.add_argument(
         "--api-key",
