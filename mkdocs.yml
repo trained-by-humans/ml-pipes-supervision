@@ -81,6 +81,9 @@ nav:
 
 plugins:
   - search
+  - pixel-lab/metadata
+  - pixel-lab/git-lastmod
+  - pixel-lab/robots
 
 extra_css:
   - stylesheets/extra.css
