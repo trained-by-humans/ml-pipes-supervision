@@ -92,6 +92,13 @@ After inference, update a stateful tracker with each frame's detections. The
 `ml-pipes` `ByteTrack` wrapper and the direct Supervision examples both use
 `ByteTrackTracker` from the external `trackers` package.
 
+ByteTrack uses low-confidence detections during association and consumes `sv.Detections`
+rather than model-specific results; see the [upstream trackers package](https://github.com/roboflow/trackers)
+for algorithm and tuning details.
+
+ByteTrack tracks boxes, not mask geometry. For segmentation results,
+`MaskAnnotator` can color each object's mask by tracker ID.
+
 === "ml-pipes"
 
     ```{ .py hl_lines="15" }
@@ -402,30 +409,6 @@ Reuse the same pipeline or stateful objects for the whole video.
         callback=callback,
     )
     ```
-
-## Frequently Asked Questions
-
-### How do I track objects across video frames with supervision?
-
-Create a `trackers.ByteTrackTracker()` and pass `sv.Detections` to its `update()`
-method on each frame. The tracker assigns persistent IDs. Combine it with
-`sv.TraceAnnotator` to visualize trajectories. The `ml-pipes` `ByteTrack` operator
-wraps the same tracker.
-
-### What should I know about ByteTrack?
-
-ByteTrack uses low-confidence detections during association, which can improve
-continuity during missed or weak detections. Use `trackers.ByteTrackTracker` for
-direct tracking or the `ml-pipes` `ByteTrack` operator in a pipeline; Supervision's
-built-in `sv.ByteTrack` is deprecated.
-
-### Can I track instances instead of bounding boxes?
-
-Yes. ByteTrack tracks bounding boxes. For instance masks, use `sv.MaskAnnotator` with the tracker IDs to color-code each tracked object consistently.
-
-### Does ByteTrack work with any detection model?
-
-Yes. ByteTrack is model-agnostic - it accepts any `Detections` object with bounding boxes, regardless of the supported converter or model output that produced it.
 
 ## Authors
 

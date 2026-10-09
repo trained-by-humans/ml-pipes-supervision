@@ -16,10 +16,9 @@ The examples use [RF-DETR](https://github.com/roboflow/rf-detr) through
 
 First, you'll need to obtain predictions from your object detection or segmentation model.
 
-To run inference, initialize a Roboflow Inference model and pass the source
-image to its `infer` method. The result is an Inference response object that
-you will convert to a `Detections` instance in the next step. The `ml-pipes`
-pipeline below performs the same operation as a composable pipeline boundary.
+To run inference, initialize a Roboflow Inference model and pass it the source
+image. The result is an Inference response object that you will convert to a
+`Detections` instance in the next step.
 
 === "ml-pipes"
 
@@ -56,9 +55,8 @@ pipeline below performs the same operation as a composable pipeline boundary.
 
 Now that we have predictions from a model, we can load them into Supervision.
 
-Supervision provides `sv.Detections.from_inference` to convert a raw Inference
-response into a unified `Detections` object. The `ml-pipes` equivalent keeps
-that conversion as an explicit pipeline boundary.
+Supervision's converters turn model predictions into a unified `Detections`
+object for filtering and annotation, regardless of the model that produced them.
 
 === "ml-pipes"
 
@@ -98,19 +96,13 @@ that conversion as an explicit pipeline boundary.
     detections = sv.Detections.from_inference(results)
     ```
 
-You can load predictions from other computer vision frameworks and libraries using:
-
-- [`from_deepsparse`](https://supervision.roboflow.com/latest/detection/core/#supervision.detection.core.Detections.from_deepsparse) ([Deepsparse](https://github.com/neuralmagic/deepsparse))
-- [`from_detectron2`](https://supervision.roboflow.com/latest/detection/core/#supervision.detection.core.Detections.from_detectron2) ([Detectron2](https://github.com/facebookresearch/detectron2))
-- [`from_mmdetection`](https://supervision.roboflow.com/latest/detection/core/#supervision.detection.core.Detections.from_mmdetection) ([MMDetection](https://github.com/open-mmlab/mmdetection))
-- [`from_sam`](https://supervision.roboflow.com/latest/detection/core/#supervision.detection.core.Detections.from_sam) ([Segment Anything Model](https://github.com/facebookresearch/segment-anything))
-- [`from_yolo_nas`](https://supervision.roboflow.com/latest/detection/core/#supervision.detection.core.Detections.from_yolo_nas) ([YOLO-NAS](https://github.com/Deci-AI/super-gradients/blob/master/YOLONAS.md))
+The available operators for loading predictions from other frameworks are listed under [Detection Boundaries](../reference.md#detection-boundaries).
 
 ## Annotate Image with Detections
 
-Finally, we can annotate the image with the predictions. Since we are working with an object detection model, we will use the [`sv.BoxAnnotator`](https://supervision.roboflow.com/latest/detection/annotators/#supervision.annotators.core.BoxAnnotator) and [`sv.LabelAnnotator`](https://supervision.roboflow.com/latest/detection/annotators/#supervision.annotators.core.LabelAnnotator) classes.
-
-To draw bounding boxes and class labels on your image, create a `BoxAnnotator` and a `LabelAnnotator`, then call their `annotate` methods in sequence. Each annotator returns the modified image, so you can chain multiple annotators together. The result is a single NumPy array with all visual overlays rendered and ready for display or saving.
+Use `BoxAnnotator` and `LabelAnnotator` to draw bounding boxes and class labels.
+Annotation needs both the source image and its detections; multiple annotators
+can add their overlays to the same image.
 
 === "ml-pipes"
 
@@ -164,7 +156,10 @@ To draw bounding boxes and class labels on your image, create a `BoxAnnotator` a
 
 ## Display Custom Labels
 
-By default, [`sv.LabelAnnotator`](https://supervision.roboflow.com/latest/detection/annotators/#supervision.annotators.core.LabelAnnotator) will label each detection with its `class_name` (if possible) or `class_id`. You can override this behavior by passing a list of custom `labels` to the `annotate` method. `ml-pipes` configures the supported label fields directly on `LabelAnnotator`.
+By default, [`sv.LabelAnnotator`](https://supervision.roboflow.com/0.30.9/detection/annotators/#supervision.annotators.core.LabelAnnotator)
+uses `detections.data["class_name"]`, then class IDs, then detection indices.
+Custom labels can include confidence scores or other detection data. The
+examples below add class names and confidence to each detection's label.
 
 === "ml-pipes"
 
@@ -224,7 +219,9 @@ By default, [`sv.LabelAnnotator`](https://supervision.roboflow.com/latest/detect
 
 ## Annotate Image with Segmentations
 
-If you are running the segmentation model [`sv.MaskAnnotator`](https://supervision.roboflow.com/latest/detection/annotators/#supervision.annotators.core.MaskAnnotator) is a drop-in replacement for [`sv.BoxAnnotator`](https://supervision.roboflow.com/latest/detection/annotators/#supervision.annotators.core.BoxAnnotator) that will allow you to draw masks instead of boxes.
+For segmentation results, use `MaskAnnotator` instead of `BoxAnnotator` to draw
+masks rather than boxes. Combine both annotators if you want boxes and masks
+on the same image.
 
 === "ml-pipes"
 
@@ -315,24 +312,6 @@ vehicle video used in the line-crossing example.
 [![Detect and Annotate pipeline inspection](../assets/detect_and_annotate/inspection.png)](../assets/detect_and_annotate/inspection.html)
 
 *Click the image to open the interactive inspection report.*
-
-## Frequently Asked Questions
-
-### How do I detect and annotate objects with supervision?
-
-Pass any model's output to `sv.Detections.from_<model>()` to create a unified `Detections` object. Then pass it to `sv.BoxAnnotator` or `sv.MaskAnnotator` to draw predictions on an image.
-
-### Can I annotate both bounding boxes and masks at the same time?
-
-Yes. Chain annotators: first draw boxes with `BoxAnnotator`, then overlay masks with `MaskAnnotator` on the same scene.
-
-### How do I label detections with class names?
-
-Use `sv.LabelAnnotator` and pass custom text with the `labels` parameter. If a connector provides class names, they are stored in `detections["class_name"]` / `detections.data["class_name"]`; when `labels` is omitted, `LabelAnnotator` uses class names first, then class IDs, then detection indices.
-
-### Can I use supervision with Hugging Face models?
-
-Yes. `sv.Detections.from_transformers()` accepts supported Hugging Face object detection and segmentation outputs. Vision-language model outputs are handled through `sv.Detections.from_vlm(...)`, for example with `sv.VLM.FLORENCE_2` or `sv.VLM.PALIGEMMA`.
 
 ## Authors
 

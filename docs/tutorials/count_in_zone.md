@@ -4,11 +4,12 @@ description: >-
   Count objects in polygon zones with Supervision and ml-pipes using RF-DETR, YOLO, or your preferred model.
 ---
 
-With supervision, you can count the number of objects in a zone in an image or video. In this guide, we will show how to count the number of cars in a traffic video.
+# Count in Zone
 
-[View the notebook that accompanies this tutorial](https://github.com/roboflow/notebooks/blob/main/notebooks/how-to-use-polygonzone-annotate-and-supervision.ipynb).
+With Supervision, you can count objects inside a zone in an image or video, this guide counts cars in a traffic video.
+[upstream notebook](https://github.com/roboflow/notebooks/blob/main/notebooks/how-to-use-polygonzone-annotate-and-supervision.ipynb).
 
-To make it easier for you to follow our tutorial download the video we will use as an example. You can do this using the `supervision.assets` module:
+Start by downloading the source video:
 
 ```python
 from supervision.assets import download_assets, VideoAssets
@@ -27,7 +28,6 @@ consistent zone coloring throughout the output video.
 ```python
 import numpy as np
 import supervision as sv
-import cv2
 
 from inference import get_model
 from supervision.assets import VideoAssets, download_assets
@@ -41,28 +41,7 @@ colors = sv.ColorPalette.DEFAULT
 
 ## Calculate Coordinates
 
-To count objects in a zone, you need to know the coordinates where you want to draw the zone.
-
-You can calculate coordinates using the [PolygonZone web utility](https://roboflow.github.io/polygonzone/).
-
-To use the PolygonZone website, you will need to upload an image or frame from a video. You can retrieve a frame using this code:
-
-```python
-generator = sv.get_video_frames_generator(VIDEO)
-iterator = iter(generator)
-
-frame = next(iterator)
-
-cv2.imwrite("first_frame.png", frame)
-```
-
-PolygonZone will give you NumPy arrays that you can use with supervision to count objects in zones.
-
-<video width="100%" loop muted autoplay>
-  <source src="https://media.roboflow.com/polygonzone.mp4" type="video/mp4">
-</video>
-
-Save the coordinates in an array:
+Define polygons in source-video pixel coordinates. These coordinates match the sample video:
 
 ```python
 polygons = [
@@ -71,11 +50,16 @@ polygons = [
 ]
 ```
 
+For another video, draw them with the [PolygonZone web utility](https://roboflow.github.io/polygonzone/);
+see the [upstream walkthrough](https://supervision.roboflow.com/0.30.9/how_to/count_in_zone/#calculate-coordinates).
+
 ## Define Zones
 
-With the coordinates of the zones to draw ready, we can set up our zones:
+Create a `PolygonZone` for each polygon, pairing it with a
+`PolygonZoneAnnotator` for the zone overlay and a `BoxAnnotator` for detection
+boxes. Each zone determines which detections fall inside its boundaries.
 
-Instantiate a `PolygonZone` for each polygon array, pairing it with a `PolygonZoneAnnotator` for visual overlay and a `BoxAnnotator` for drawing detection boxes. Each zone will later trigger on incoming detections to determine which objects fall inside its boundaries, enabling per-zone counting in the inference callback.
+Note that counts represent per-frame occupancy, not unique visitors across all frames.
 
 === "ml-pipes"
 
@@ -129,9 +113,9 @@ Instantiate a `PolygonZone` for each polygon array, pairing it with a `PolygonZo
 
 ## Run Inference
 
-We can run inference on a video using the [sv.process_video](https://supervision.roboflow.com/utils/video/#process_video) function. This function accepts a callback that runs inference on each frame and compiles the results into a video.
-
-Run RF-DETR, annotate predictions and zones, and save the results to `result.mp4`.
+Detect objects in each frame and filter the detections by zone. Annotation
+needs both the source frame and its detections to draw the boxes and zone
+counts on the image.
 
 === "ml-pipes"
 
@@ -192,25 +176,11 @@ Run RF-DETR, annotate predictions and zones, and save the results to `result.mp4
     sv.process_video(source_path=VIDEO, target_path="result.mp4", callback=process_frame)
     ```
 
-Here is an example of inference run on the video:
+Here is an example of output:
 
 <video width="100%" loop muted autoplay>
   <source src="https://blog.roboflow.com/content/media/2023/03/trim-counting.mp4" type="video/mp4">
 </video>
-
-## Frequently Asked Questions
-
-### How do I count objects in a zone with supervision?
-
-Create `sv.PolygonZone` with a polygon defining your region. Call `zone.trigger(detections)` on each frame — it returns a mask of detections inside the zone.
-
-### Can I count objects crossing a line instead of entering a zone?
-
-Yes. Use `sv.LineZone` — define a start and end point. `zone.trigger(detections)` returns a tuple of two boolean arrays, `(crossed_in, crossed_out)`, indicating which detections crossed the line in each direction. `LineZone` requires `detections.tracker_id`; run a tracker first so the same object can be matched across frames.
-
-### Can I combine zone counting with tracking?
-
-Yes. You can pass tracker IDs from `trackers.ByteTrackTracker` alongside your detections, but `sv.PolygonZone` still evaluates the zone on each frame and reports which objects are currently inside it. If you want to count each object only once when it first enters the zone, maintain a set of seen `tracker_id` values after filtering detections with `zone.trigger(detections)`, or use a dedicated entry/crossing counting tool such as `sv.LineZone` when it better matches your use case.
 
 ## Author
 
