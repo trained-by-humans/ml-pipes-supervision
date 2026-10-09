@@ -1,7 +1,6 @@
 ---
-comments: true
+title: Measure Time in Zones with Supervision
 description: Measure and annotate how long tracked objects remain in a video zone with Supervision and ml-pipes.
-date_modified: 2026-09-11
 ---
 
 # Time in Zone

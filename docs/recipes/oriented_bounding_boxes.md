@@ -1,4 +1,5 @@
 ---
+title: Oriented Bounding Boxes with YOLO and Supervision
 description: Detect densely packed aerial objects with YOLO11-OBB, OBB-aware NMS, and Supervision annotators in ml-pipes.
 ---
 

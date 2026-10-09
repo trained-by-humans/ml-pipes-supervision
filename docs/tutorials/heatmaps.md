@@ -1,7 +1,6 @@
 ---
-comments: true
+title: Create Detection Heatmaps with Supervision
 description: Build a cumulative people-activity heatmap from video detections with Supervision and ml-pipes.
-date_modified: 2026-09-11
 ---
 
 # Detection Heatmaps

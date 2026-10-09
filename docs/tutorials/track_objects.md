@@ -1,14 +1,7 @@
 ---
-comments: true
-description: Track objects across video frames with ByteTrack in supervision and ml-pipes.
-authors:
-  - name: Piotr Skalski
-    role: Computer Vision Engineer, Roboflow
-    github: https://github.com/SkalskiP
-  - name: Soumik Mandal
-    role: ML Engineer, Roboflow
-    github: https://github.com/soumik12345
-date_modified: 2026-04-22
+title: Track Objects in Video with Supervision
+description: >-
+  Track detected objects across video frames with Supervision and ml-pipes, preserving tracker IDs and annotating object motion with ByteTrack.
 ---
 
 # Track Objects

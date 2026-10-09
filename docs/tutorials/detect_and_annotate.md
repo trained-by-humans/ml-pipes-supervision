@@ -1,14 +1,6 @@
 ---
-comments: true
+title: Detect and Annotate with Supervision
 description: Learn to load model predictions, create Detections objects, and annotate images with bounding boxes, labels, and masks using supervision.
-authors:
-  - name: Piotr Skalski
-    role: Computer Vision Engineer, Roboflow
-    github: https://github.com/SkalskiP
-  - name: Borda
-    role: Open Source Engineer, Roboflow
-    github: https://github.com/borda
-date_modified: 2026-04-22
 ---
 
 # Detect and Annotate

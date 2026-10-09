@@ -1,3 +1,9 @@
+---
+title: ml-pipes-supervision
+description: >-
+  Compose Roboflow Supervision detection conversion, annotation, tracking, and zone logic as ml-pipes operators. Install the package and explore examples.
+---
+
 # ml-pipes-supervision
 
 `ml-pipes-supervision` provides [Roboflow Supervision](https://github.com/roboflow/supervision)
