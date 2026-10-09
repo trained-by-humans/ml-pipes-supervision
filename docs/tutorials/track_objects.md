@@ -89,7 +89,8 @@ Run detection on each video frame, then draw boxes on the resulting scene.
 ### Tracking
 
 After inference, update a stateful tracker with each frame's detections. The
-`ml-pipes` `ByteTrack` wrapper uses the current external `trackers` package.
+`ml-pipes` `ByteTrack` wrapper and the direct Supervision examples both use
+`ByteTrackTracker` from the external `trackers` package.
 
 === "ml-pipes"
 
@@ -127,19 +128,20 @@ After inference, update a stateful tracker with each frame's detections. The
 
 === "Supervision"
 
-    ```{ .py hl_lines="6 12" }
+    ```{ .py hl_lines="7 13" }
     import numpy as np
     import supervision as sv
+    import trackers
     from inference.models.utils import get_roboflow_model
 
     model = get_roboflow_model(model_id="yolov8n-640", api_key="<ROBOFLOW_API_KEY>")
-    tracker = sv.ByteTrack()
+    tracker = trackers.ByteTrackTracker()
     box_annotator = sv.BoxAnnotator()
 
     def callback(frame: np.ndarray, _: int) -> np.ndarray:
         results = model.infer(frame)[0]
         detections = sv.Detections.from_inference(results)
-        detections = tracker.update_with_detections(detections)
+        detections = tracker.update(detections)
         return box_annotator.annotate(frame.copy(), detections=detections)
 
     sv.process_video(
@@ -191,20 +193,21 @@ updates the detections.
 
 === "Supervision"
 
-    ```{ .py hl_lines="8 15-19 23-24" }
+    ```{ .py hl_lines="9 16-20 24-25" }
     import numpy as np
     import supervision as sv
+    import trackers
     from inference.models.utils import get_roboflow_model
 
     model = get_roboflow_model(model_id="yolov8n-640", api_key="<ROBOFLOW_API_KEY>")
-    tracker = sv.ByteTrack()
+    tracker = trackers.ByteTrackTracker()
     box_annotator = sv.BoxAnnotator()
     label_annotator = sv.LabelAnnotator()
 
     def callback(frame: np.ndarray, _: int) -> np.ndarray:
         results = model.infer(frame)[0]
         detections = sv.Detections.from_inference(results)
-        detections = tracker.update_with_detections(detections)
+        detections = tracker.update(detections)
 
         labels = [
             f"#{tracker_id} {class_name}"
@@ -271,13 +274,14 @@ label layers.
 
 === "Supervision"
 
-    ```{ .py hl_lines="9 26-27" }
+    ```{ .py hl_lines="10 27-28" }
     import numpy as np
     import supervision as sv
+    import trackers
     from inference.models.utils import get_roboflow_model
 
     model = get_roboflow_model(model_id="yolov8n-640", api_key="<ROBOFLOW_API_KEY>")
-    tracker = sv.ByteTrack()
+    tracker = trackers.ByteTrackTracker()
     box_annotator = sv.BoxAnnotator()
     label_annotator = sv.LabelAnnotator()
     trace_annotator = sv.TraceAnnotator()
@@ -285,7 +289,7 @@ label layers.
     def callback(frame: np.ndarray, _: int) -> np.ndarray:
         results = model.infer(frame)[0]
         detections = sv.Detections.from_inference(results)
-        detections = tracker.update_with_detections(detections)
+        detections = tracker.update(detections)
 
         labels = [
             f"#{tracker_id} {class_name}"
@@ -315,11 +319,17 @@ label layers.
 
 ### How do I track objects across video frames with supervision?
 
-Pass `Detections` to `sv.ByteTrack.update_with_detections()` on each frame. The tracker assigns persistent IDs. Combine with `sv.TraceAnnotator` to visualize trajectories. `sv.ByteTrack` is deprecated in favor of `ByteTrackTracker` from the `trackers` package, where the update method is named `update()`.
+Create a `trackers.ByteTrackTracker()` and pass `sv.Detections` to its `update()`
+method on each frame. The tracker assigns persistent IDs. Combine it with
+`sv.TraceAnnotator` to visualize trajectories. The `ml-pipes` `ByteTrack` operator
+wraps the same tracker.
 
 ### What should I know about ByteTrack?
 
-ByteTrack uses low-confidence detections during association, which can improve continuity during missed or weak detections. Supervision's built-in `ByteTrack` wrapper is deprecated in favor of the external `trackers` package.
+ByteTrack uses low-confidence detections during association, which can improve
+continuity during missed or weak detections. Use `trackers.ByteTrackTracker` for
+direct tracking or the `ml-pipes` `ByteTrack` operator in a pipeline; Supervision's
+built-in `sv.ByteTrack` is deprecated.
 
 ### Can I track instances instead of bounding boxes?
 
