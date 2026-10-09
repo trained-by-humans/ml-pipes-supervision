@@ -32,7 +32,7 @@ requires-python = ">=3.10"
 dependencies = [
     "ml-pipes-core==0.1.2rc1",
     "ml-pipes-vision==0.1.2rc1",
-    "supervision>=0.29,<0.31",
+    "supervision>=0.30.0,<0.31",
     "trackers",
 ]
 
