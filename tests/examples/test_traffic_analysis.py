@@ -1,3 +1,5 @@
+"""Behavior owned by the traffic-analysis example, not upstream algorithms."""
+
 import numpy as np
 import pytest
 import supervision as sv

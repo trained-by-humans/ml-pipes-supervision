@@ -72,6 +72,11 @@ dependencies = [
 ]
 ```
 
+## Development tests
+
+See [the testing guide](tests/README.md) for setup, suite organization, and local
+commands, including the CI-helper tests.
+
 ## Quickstart
 
 Build the usual detection-and-annotation flow as one pipeline. The operators
