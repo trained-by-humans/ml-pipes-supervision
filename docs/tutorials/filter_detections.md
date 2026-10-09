@@ -1,13 +1,7 @@
 ---
 title: Filter Detections with Supervision
-comments: true
 description: >-
   Filter Supervision detections by class, confidence, area, dimensions, and polygon zones using native queries and composable ml-pipes operators.
-authors:
-  - name: Piotr Skalski
-    role: Computer Vision Engineer, Roboflow
-    github: https://github.com/SkalskiP
-date_modified: 2026-04-22
 ---
 
 # Filter Detections
