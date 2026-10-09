@@ -132,7 +132,11 @@ Modifying the input resolution of images before detection can enhance small obje
 
 ## Inference Slicer
 
-[`InferenceSlicer`](https://supervision.roboflow.com/latest/detection/tools/inference_slicer/#supervision.detection.tools.inference_slicer.InferenceSlicer) processes high-resolution images by dividing them into smaller segments, detecting objects within each, and aggregating the results.
+[`InferenceSlicer`](https://supervision.roboflow.com/0.30.9/detection/tools/inference_slicer/#supervision.detection.tools.inference_slicer.InferenceSlicer) processes high-resolution images by dividing them into smaller segments, detecting objects within each, and aggregating the results.
+
+The Supervision examples use the slicer's defaults: 640×640-pixel tiles,
+100-pixel overlap, and non-maximum suppression (NMS) at an IoU threshold of 0.5.
+The `ml-pipes` examples set those values explicitly.
 
 <video controls>
     <source src="https://media.roboflow.com/supervision_detect_small_objects_example_2.mp4" type="video/mp4">
@@ -152,7 +156,7 @@ Modifying the input resolution of images before detection can enhance small obje
             LoadFile(),
             Decode(),
             Store("source_image"),
-            Tile(slice_wh=(320, 320), overlap_wh=(80, 80)),
+            Tile(slice_wh=(640, 640), overlap_wh=(100, 100)),
             Store("tile_rects", source=1),
             Pick(0),
             Scatter(max_concurrency=4),
@@ -162,7 +166,7 @@ Modifying the input resolution of images before detection can enhance small obje
             Gather(),
             Recall("tile_rects"),
             Detections.Stitch(),
-            Detections.NMM(iou_threshold=0.5),
+            Detections.NMS(threshold=0.5),
             Store("detections"),
             Recall("source_image"),
             Pick(1),
@@ -192,7 +196,7 @@ Modifying the input resolution of images before detection can enhance small obje
         results = model.infer(image_slice)[0]
         return sv.Detections.from_inference(results)
 
-    slicer = sv.InferenceSlicer(callback = callback)
+    slicer = sv.InferenceSlicer(callback=callback)
     detections = slicer(image)
 
     box_annotator = sv.BoxAnnotator()
@@ -209,11 +213,13 @@ Modifying the input resolution of images before detection can enhance small obje
 
 ## Small Object Segmentation
 
-[`InferenceSlicer`](https://supervision.roboflow.com/latest/detection/tools/inference_slicer/#supervision.detection.tools.inference_slicer.InferenceSlicer) can perform segmentation tasks too.
+`InferenceSlicer` can perform segmentation tasks too, using the same tile and
+NMS settings as above. To opt into [compact masks](detect_and_annotate.md#compact-masks),
+set `compact_masks=True` in the conversion stage or callback.
 
 === "ml-pipes"
 
-    ```{ .py hl_lines="16 28" }
+    ```{ .py hl_lines="12 16 22 28" }
     from ml_pipes.core import Pipeline
     from ml_pipes.standard import Gather, Pick, Recall, Scatter, Select, Store
     from ml_pipes.supervision import Detections, ImageToArray, LabelAnnotator, MaskAnnotator, PlotImage
@@ -225,7 +231,7 @@ Modifying the input resolution of images before detection can enhance small obje
             LoadFile(),
             Decode(),
             Store("source_image"),
-            Tile(slice_wh=(320, 320), overlap_wh=(80, 80)),
+            Tile(slice_wh=(640, 640), overlap_wh=(100, 100)),
             Store("tile_rects", source=1),
             Pick(0),
             Scatter(max_concurrency=4),
@@ -235,7 +241,7 @@ Modifying the input resolution of images before detection can enhance small obje
             Gather(),
             Recall("tile_rects"),
             Detections.Stitch(),
-            Detections.NMM(iou_threshold=0.5),
+            Detections.NMS(threshold=0.5),
             Store("detections"),
             Recall("source_image"),
             Pick(1),
@@ -265,7 +271,7 @@ Modifying the input resolution of images before detection can enhance small obje
         results = model.infer(image_slice)[0]
         return sv.Detections.from_inference(results)
 
-    slicer = sv.InferenceSlicer(callback = callback)
+    slicer = sv.InferenceSlicer(callback=callback)
     detections = slicer(image)
 
     mask_annotator = sv.MaskAnnotator()
@@ -284,11 +290,16 @@ Modifying the input resolution of images before detection can enhance small obje
 
 ### How do I detect small objects with supervision?
 
-Use `sv.InferenceSlicer` to split a high-resolution image into overlapping tiles, run detection on each tile, and merge results with non-maximum suppression. This dramatically improves recall for tiny targets.
+Split a high-resolution image into overlapping tiles and run detection on each
+tile. These examples remove duplicate detections with NMS at an IoU threshold of 0.5;
+see the [upstream slicer reference](https://supervision.roboflow.com/0.30.9/detection/tools/inference_slicer/#supervision.detection.tools.inference_slicer.InferenceSlicer)
+for other overlap filters.
 
 ### What overlap should I use between tiles?
 
-`InferenceSlicer` takes overlap in pixels via `overlap_wh`, not as a percentage. The default is `100` pixels in both directions. Increase `overlap_wh` when objects are close to the tile size or often appear on tile boundaries, and decrease it when speed is more important.
+`InferenceSlicer` takes overlap in pixels via `overlap_wh`, not as a percentage.
+These examples use the default of 100 pixels in both directions. Increase
+overlap when objects often span tile boundaries, at the cost of more inference.
 
 ### Can I use InferenceSlicer with any detection model?
 

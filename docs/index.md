@@ -24,3 +24,8 @@ install the optional integration with
 Start with [Detect and Annotate](tutorials/detect_and_annotate.md) for a
 pipeline-oriented port of a Supervision guide. See [Reference](reference.md)
 for the public surface and [Coverage](coverage.md) for compatibility status.
+
+## Supervision Updates
+
+For the latest upstream changes, see
+[Supervision's GitHub releases](https://github.com/roboflow/supervision/releases).

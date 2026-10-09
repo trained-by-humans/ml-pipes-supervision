@@ -315,6 +315,94 @@ label layers.
     <source src="https://media.roboflow.com/supervision/video-examples/how-to/track-objects/annotate-video-with-traces.mp4" type="video/mp4">
 </video>
 
+## Smooth Tracked Detections
+
+For detection-only video, optionally place `DetectionsSmoother` after `ByteTrack`
+and before annotation. It requires tracker IDs and does not support segmentation;
+`length` is the smoothing window in frames. See the [upstream smoother reference](https://supervision.roboflow.com/0.30.9/detection/tools/smoother/#supervision.detection.tools.smoother.DetectionsSmoother).
+
+Extend the previous trace-annotation flow with the highlighted smoothing stage.
+In `ml-pipes`, insert it before `Recall`, while the payload is still detections.
+Reuse the same pipeline or stateful objects for the whole video.
+
+=== "ml-pipes"
+
+    ```{ .py hl_lines="5 16" }
+    import supervision as sv
+
+    from ml_pipes.core import Pipeline
+    from ml_pipes.standard import Recall, Select, Store
+    from ml_pipes.supervision import BoxAnnotator, Detections, DetectionsSmoother, LabelAnnotator, TraceAnnotator
+    from ml_pipes.supervision.inference import RoboflowInference
+    from ml_pipes.supervision.trackers import ByteTrack
+
+    pipeline = Pipeline(
+        [
+            Store("source_frame"),
+            RoboflowInference(model_id="yolov8n-640"),
+            Select(0),
+            Detections.FromInference(),
+            ByteTrack(),
+            DetectionsSmoother(length=5),
+            Recall("source_frame", prepend=True),
+            BoxAnnotator(),
+            LabelAnnotator(show_tracker_id=True, show_class=True),
+            TraceAnnotator(),
+        ]
+    )
+
+    def callback(frame, _: int):
+        annotated_frame, _ = pipeline(frame)
+        return annotated_frame
+
+    sv.process_video(
+        source_path="people-walking.mp4",
+        target_path="result.mp4",
+        callback=callback,
+    )
+    ```
+
+=== "Supervision"
+
+    ```{ .py hl_lines="8 17" }
+    import numpy as np
+    import supervision as sv
+    import trackers
+    from inference.models.utils import get_roboflow_model
+
+    model = get_roboflow_model(model_id="yolov8n-640", api_key="<ROBOFLOW_API_KEY>")
+    tracker = trackers.ByteTrackTracker()
+    smoother = sv.DetectionsSmoother(length=5)
+    box_annotator = sv.BoxAnnotator()
+    label_annotator = sv.LabelAnnotator()
+    trace_annotator = sv.TraceAnnotator()
+
+    def callback(frame: np.ndarray, _: int) -> np.ndarray:
+        results = model.infer(frame)[0]
+        detections = sv.Detections.from_inference(results)
+        detections = tracker.update(detections)
+        detections = smoother.update_with_detections(detections)
+
+        labels = [
+            f"#{tracker_id} {class_name}"
+            for class_name, tracker_id
+            in zip(detections.data["class_name"], detections.tracker_id)
+        ]
+
+        annotated_frame = box_annotator.annotate(
+            frame.copy(), detections=detections)
+        annotated_frame = label_annotator.annotate(
+            annotated_frame, detections=detections, labels=labels)
+        return trace_annotator.annotate(
+            annotated_frame, detections=detections)
+
+    sv.process_video(
+        source_path="people-walking.mp4",
+        target_path="result.mp4",
+        callback=callback,
+    )
+    ```
+
 ## Frequently Asked Questions
 
 ### How do I track objects across video frames with supervision?

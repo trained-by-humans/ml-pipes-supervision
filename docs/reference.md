@@ -29,14 +29,14 @@ For the cross-package catalog, see
 | Operator | Input -> Output | Notes |
 |---|---|---|
 | `ImageToArray()` | `ImagePayload` -> `NDArray[uint8]` | Converts an HWC `ImagePayload` to a BGR image for Supervision and model APIs. |
-| `Detections.FromInference(compact_masks=False)` | Inference result -> `sv.Detections` | Calls `sv.Detections.from_inference(...)`. |
+| `Detections.FromInference(compact_masks=False)` | Inference result -> `sv.Detections` | Calls `sv.Detections.from_inference(...)`. Opt into cropped encoded masks with `compact_masks=True`; see [compact masks](tutorials/detect_and_annotate.md#compact-masks). |
 | `Detections.FromUltralytics()` | Ultralytics result -> `sv.Detections` | Calls `sv.Detections.from_ultralytics(...)`. |
 | `Detections.FromTensorRegistry(...)` | `TensorRegistry` -> `sv.Detections` | Converts configured `boxes`, `scores`, `classes`, and optional `masks` tensors. |
 | `Detections.Filter(filter_fn)` | `sv.Detections` -> `sv.Detections` | Applies a custom callable that returns detections or a boolean selection mask, while retaining the detections contract. |
-| `Detections.NMS(...)` | `sv.Detections` -> `sv.Detections` | Applies Supervision non-maximum suppression. |
+| `Detections.NMS(...)` | `sv.Detections` -> `sv.Detections` | Applies [upstream non-maximum suppression](https://supervision.roboflow.com/0.30.9/detection/core/#supervision.detection.core.Detections.with_nms): masks first, otherwise oriented boxes, otherwise `xyxy` boxes. |
 | `Detections.NMM(...)` | `sv.Detections` -> `sv.Detections` | Applies Supervision non-maximum merge. |
 | `Detections.Stitch()` | `(list[sv.Detections], list[TileRect])` -> `sv.Detections` | Moves tiled detections into source-image coordinates and merges them. |
-| `DetectionsSmoother(length=5)` | `sv.Detections` -> `sv.Detections` | Applies `sv.DetectionsSmoother`. |
+| `DetectionsSmoother(length=5)` | `sv.Detections` -> `sv.Detections` | Smooths tracked boxes over `length` frames; requires tracker IDs and does not support segmentation. See [smoothing and reset](tutorials/track_objects.md#smooth-tracked-detections). |
 
 ## Annotation
 
@@ -75,7 +75,7 @@ color based on tracking IDs or custom detection data.
 | `TrackingTimer(fps, field="tracking_time", reset_missing_tracks=True)` | tracked `sv.Detections` -> `sv.Detections` | Adds elapsed time for tracks present in the incoming stream. Unconfirmed negative IDs receive `0.0`; set `reset_missing_tracks=False` to retain a track's entry time across gaps. Filtering stages define membership. |
 | `TriggerLineZone(line_zone)` | `sv.Detections` -> `sv.Detections` | Updates the line-zone counters and retains detections. |
 | `PlotImage(at=None)` | payload -> payload | Displays one image through `sv.plot_image(...)`. |
-| `ImageWindow(title="supervision", at=None)` | payload -> payload | Updates an OpenCV-backed Supervision image window. |
+| `ImageWindow(title="supervision", at=None)` | payload -> payload | Updates a [Tkinter/Pillow image window](https://supervision.roboflow.com/0.30.9/utils/image_window/#supervision.utils.image_window.ImageWindow); requires Tkinter and a desktop display. |
 | `FPSMonitor(sample_size=30)` | payload -> payload | Writes the current FPS to the console. |
 
 ## Roboflow Inference

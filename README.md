@@ -52,6 +52,11 @@ This also installs the required `ml-pipes` packages, including
 `ml-pipes-core` and `ml-pipes-vision`, plus the Supervision and tracker runtime
 dependencies.
 
+Supervision 0.30 no longer installs OpenCV, but our `trackers` dependency
+currently installs `opencv-python`. Avoid adding a second OpenCV wheel family;
+see the [upstream backend guide](https://github.com/roboflow/supervision/blob/0.30.9/docs/how_to/opencv_migration.md).
+`ImageWindow` uses Tkinter and Pillow, requiring Tkinter and a desktop display.
+
 To use `RoboflowInference` or run the inference-based examples, install the
 optional Inference integration:
 

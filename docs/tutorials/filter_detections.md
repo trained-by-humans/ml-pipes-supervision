@@ -372,7 +372,10 @@ Yes. Use `detections.box_aspect_ratio` for aspect ratio filtering. If you need e
 
 ### How do I remove duplicate detections (NMS) from my results?
 
-Use `detections.with_nms(threshold=0.5)` — it applies non-maximum suppression on the `xyxy` boxes.
+Use `Detections.NMS(threshold=0.5)` in a pipeline, or
+`detections.with_nms(threshold=0.5)` directly. NMS uses masks when present;
+otherwise it uses oriented boxes from `detections.data["xyxyxyxy"]`, falling
+back to axis-aligned `xyxy` boxes. See the [upstream NMS reference](https://supervision.roboflow.com/0.30.9/detection/core/#supervision.detection.core.Detections.with_nms).
 
 ## Author
 

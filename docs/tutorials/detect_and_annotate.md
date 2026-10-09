@@ -281,6 +281,18 @@ If you are running the segmentation model [`sv.MaskAnnotator`](https://supervisi
 
 ![segmentation-annotation](https://media.roboflow.com/supervision_detect_and_annotate_example_3.png)
 
+### Compact Masks
+
+For segmentation, replace the conversion stage with
+`Detections.FromInference(compact_masks=True)`. Supervision's `sv.CompactMask`
+stores cropped, encoded masks instead of full-image dense arrays;
+`MaskAnnotator` and `Detections.Stitch()` accept these masks.
+
+Compact conversion crops masks to detector bounding boxes, dropping pixels
+outside them. Keep the default `compact_masks=False` to preserve those pixels.
+See the [upstream compact-mask guide](https://github.com/roboflow/supervision/blob/0.30.9/docs/how_to/use_compact_masks.md)
+for formats, conversion, and performance details.
+
 ## Inspect the Pipeline
 
 Use `Pipeline.inspect()` to capture the value at every operator boundary
