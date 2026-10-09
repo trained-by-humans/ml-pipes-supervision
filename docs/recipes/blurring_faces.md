@@ -1,6 +1,6 @@
 ---
 title: Blur Faces with MediaPipe and Supervision
-description: Detect and blur faces in an image with MediaPipe, Supervision, and ml-pipes.
+description: Detect and blur faces with MediaPipe or your preferred face detector using Supervision and ml-pipes.
 ---
 
 # Blurring Faces

@@ -1,7 +1,7 @@
 ---
 title: Supervision Pipeline Recipes
 description: >-
-  Explore runnable ml-pipes recipes for face blurring, directional line counts, YOLO-World zero-shot detection, and oriented bounding boxes with Supervision.
+  Explore runnable ml-pipes recipes for face blurring, directional line counts, zero-shot detection, and oriented bounding boxes with Supervision.
 ---
 
 # Pipeline Recipes

@@ -1,13 +1,14 @@
 ---
 title: Detect and Annotate with Supervision
-description: Learn to load model predictions, create Detections objects, and annotate images with bounding boxes, labels, and masks using supervision.
+description: Detect and annotate images with RF-DETR, YOLO, or your preferred model using Supervision and ml-pipes.
 ---
 
 # Detect and Annotate
 
-This guide uses [RF-DETR](https://github.com/roboflow/rf-detr) through
-[Roboflow Inference](https://github.com/roboflow/inference), then converts its
-predictions to Supervision detections for annotation.
+Detect objects and annotate boxes, labels, or masks with RF-DETR, YOLO, or your
+preferred detection or segmentation model using Supervision and `ml-pipes`.
+The examples use [RF-DETR](https://github.com/roboflow/rf-detr) through
+[Roboflow Inference](https://github.com/roboflow/inference).
 
 ![basic-annotation](https://media.roboflow.com/supervision_detect_and_annotate_example_1.png)
 

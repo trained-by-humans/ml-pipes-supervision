@@ -1,7 +1,7 @@
 ---
 title: Count Objects in Zones with Supervision
 description: >-
-  Count objects in polygon zones with Supervision and ml-pipes, using detections and video frames to monitor vehicle occupancy in regions of interest.
+  Count objects in polygon zones with Supervision and ml-pipes using RF-DETR, YOLO, or your preferred model.
 ---
 
 With supervision, you can count the number of objects in a zone in an image or video. In this guide, we will show how to count the number of cars in a traffic video.

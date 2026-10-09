@@ -1,6 +1,6 @@
 ---
 title: Create Detection Heatmaps with Supervision
-description: Build a cumulative people-activity heatmap from video detections with Supervision and ml-pipes.
+description: Build cumulative activity heatmaps from RF-DETR, YOLO, or your preferred model's detections with Supervision and ml-pipes.
 ---
 
 # Detection Heatmaps

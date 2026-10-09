@@ -1,7 +1,7 @@
 ---
 title: Count Line Crossings with Supervision
 description: >-
-  Build an ml-pipes video pipeline with Supervision to detect and track vehicles, count directional line crossings, draw motion traces, and save output.
+  Track objects and count directional line crossings with Supervision and ml-pipes using RF-DETR, YOLO, or your preferred model.
 ---
 
 # Count Objects Crossing a Line

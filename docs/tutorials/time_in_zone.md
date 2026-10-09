@@ -1,6 +1,6 @@
 ---
 title: Measure Time in Zones with Supervision
-description: Measure and annotate how long tracked objects remain in a video zone with Supervision and ml-pipes.
+description: Measure time spent in video zones with Supervision and ml-pipes using detections from RF-DETR, YOLO, or your preferred model.
 ---
 
 # Time in Zone

@@ -1,6 +1,6 @@
 ---
 title: Save Detections to CSV or JSON with Supervision
-description: Save object detection results to CSV or JSON with supervision's CSVSink and JSONSink — export predictions for analysis and downstream pipelines.
+description: Save detections from RF-DETR, YOLO, or your preferred model to CSV or JSON with Supervision and ml-pipes.
 ---
 
 # Save Detections

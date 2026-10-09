@@ -1,14 +1,16 @@
 ---
 title: Detect Small Objects with Supervision
 description: >-
-  Detect small objects using tiled inference with Supervision and ml-pipes. Compare full-image predictions with sliced detection and stitch the results.
+  Detect small objects with tiled inference using RF-DETR, YOLO, or your preferred model in Supervision and ml-pipes.
 ---
 
 # Detect Small Objects
 
-This guide detects small objects with [RF-DETR](https://github.com/roboflow/rf-detr)
-through [Inference](https://github.com/roboflow/inference), using
-[`InferenceSlicer`](https://supervision.roboflow.com/latest/detection/tools/inference_slicer/#supervision.detection.tools.inference_slicer.InferenceSlicer).
+Detect small objects with RF-DETR, YOLO, or your preferred model using tiled
+inference in Supervision and `ml-pipes`. The examples use
+[RF-DETR](https://github.com/roboflow/rf-detr) through
+[Inference](https://github.com/roboflow/inference), comparing full-image detection
+with [`InferenceSlicer`](https://supervision.roboflow.com/latest/detection/tools/inference_slicer/#supervision.detection.tools.inference_slicer.InferenceSlicer).
 
 <video controls>
     <source src="https://media.roboflow.com/supervision_detect_small_objects_example.mp4" type="video/mp4">

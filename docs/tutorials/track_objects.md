@@ -1,7 +1,7 @@
 ---
 title: Track Objects in Video with Supervision
 description: >-
-  Track detected objects across video frames with Supervision and ml-pipes, preserving tracker IDs and annotating object motion with ByteTrack.
+  Track objects across video frames and annotate IDs and motion with Supervision and ml-pipes, using RF-DETR, YOLO, or your preferred model.
 ---
 
 # Track Objects

@@ -1,7 +1,7 @@
 ---
 title: Filter Detections with Supervision
 description: >-
-  Filter Supervision detections by class, confidence, area, dimensions, and polygon zones using native queries and composable ml-pipes operators.
+  Filter detections from RF-DETR, YOLO, or your preferred model by class, confidence, geometry, or zones with Supervision and ml-pipes.
 ---
 
 # Filter Detections
