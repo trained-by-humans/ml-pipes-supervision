@@ -64,6 +64,9 @@ optional Inference integration:
 python -m pip install "ml-pipes-supervision[inference]"
 ```
 
+On Python 3.13, this extra requires Supervision >=0.30.6. The core package
+continues to support Supervision >=0.30.0.
+
 The public operators are available from `ml_pipes.supervision`. Roboflow
 Inference and external tracker boundaries are available from
 `ml_pipes.supervision.inference` and `ml_pipes.supervision.trackers`.

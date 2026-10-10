@@ -30,8 +30,8 @@ jobs:
       - name: Install matrix tooling
         run: python -m pip install packaging pytest
 
-      - name: Test matrix selection
-        run: python -m pytest -q .github/tests/test_supervision_matrix.py
+      - name: Test matrix and optional dependency selection
+        run: python -m pytest -q .github/tests
 
       - name: Resolve lowest and highest permitted releases
         id: matrix
@@ -58,13 +58,19 @@ jobs:
       - name: Install package and test dependencies
         run: python -m pip install -e '.[test]' 'supervision==${{ matrix.supervision-version }}'
 
+      # Python 3.13 Inference requires Supervision >=0.30.6, so keep the
+      # lowest core release independent of this optional integration.
+      - name: Install optional Inference integration on Python 3.13
+        if: matrix.python-version == '3.13' && matrix.supervision-profile != 'lowest'
+        run: python -m pip install -e '.[test,inference]' 'supervision==${{ matrix.supervision-version }}'
+
       - name: Verify resolved dependencies
         run: |
           python -m pip show supervision
           python -m pip check
 
       - name: Run tests
-        run: python -m pytest -q
+        run: python -m pytest -q -rs
 
   package:
     name: Build and validate distribution

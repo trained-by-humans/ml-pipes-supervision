@@ -1,9 +1,17 @@
 """Inference wrapper contracts; no model construction, downloads, or execution."""
 
+from importlib.util import find_spec
 from unittest.mock import MagicMock, create_autospec
 
 import numpy as np
 import pytest
+
+if find_spec("inference") is None:
+    pytest.skip(
+        "Optional Inference dependency is not installed; use the inference extra "
+        "with a compatible Supervision release to run these tests.",
+        allow_module_level=True,
+    )
 
 from ml_pipes.supervision import inference as inference_ops
 from ml_pipes.vision import ImagePayload

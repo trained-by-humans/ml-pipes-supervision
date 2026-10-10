@@ -4,11 +4,14 @@ From the repository root, install the package and test dependencies in your
 virtual environment:
 
 ```sh
-python -m pip install -e '.[test]' packaging
+python -m pip install -e '.[test,inference]' packaging
 ```
 
-`packaging` is used by the CI-helper tests. The `test` extra includes the optional
-Inference dependency; the tests never download or execute models.
+`packaging` is used by the CI-helper tests. The tests never download or execute
+models. On Python 3.13, the `inference` extra requires Supervision >=0.30.6.
+Use only `.[test]` to test the core integration at its 0.30.0 floor; when Inference
+is absent, only `test_inference.py` skips. An installed Inference package's
+import failures are not skipped.
 
 ## Running tests
 
@@ -34,8 +37,10 @@ python -m pytest -q .github/tests
 
 CI runs package/example tests against the lowest and highest stable Supervision
 releases permitted by `pyproject.toml` for each supported Python version. Matrix
-selection tests run separately in the setup job. `.github` is hidden, so its
-tests need an explicit path during local runs.
+and dependency-selection tests run separately in the setup job. Inference 1.3.8
+is tested at both bounds on Python 3.10–3.12. Python 3.13 tests the core integration
+at both bounds, and adds Inference 1.7.4 only to the highest-version profile.
+`.github` is hidden, so its tests need an explicit path during local runs.
 
 ## Organization and scope
 

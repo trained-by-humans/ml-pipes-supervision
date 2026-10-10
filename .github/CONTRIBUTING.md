@@ -22,7 +22,7 @@ Install the test dependencies, then run the full suite from the repository
 root before submitting a change:
 
 ```bash
-python -m pip install -e '.[test]' packaging
+python -m pip install -e '.[test,inference]' packaging
 python -m pytest -q tests .github/tests
 ```
 
@@ -34,6 +34,8 @@ python -m pytest tests/test_core.py -q
 ```
 
 See [the testing guide](../tests/README.md) for suite organization and scope.
+On Python 3.13, optional Inference tests require Supervision >=0.30.6;
+use `.[test]` for core-only tests at the package's 0.30.0 floor.
 The CI-helper tests need the explicit `.github/tests` path during local runs.
 
 The suite may emit deprecation warnings from third-party dependencies; these
