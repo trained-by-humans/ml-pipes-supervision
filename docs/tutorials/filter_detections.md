@@ -1,12 +1,14 @@
 ---
 title: Filter Detections with Supervision
 description: >-
-  Filter Supervision detections by class, confidence, area, dimensions, and polygon zones using native queries and composable ml-pipes operators.
+  Filter detections from RF-DETR, YOLO, or your preferred model by class, confidence, geometry, or zones with Supervision and ml-pipes.
 ---
 
 # Filter Detections
 
-The advanced filtering capabilities of the `Detections` class offer users a versatile and efficient way to narrow down and refine object detections. This section outlines various filtering methods, including filtering by specific class or a set of classes, confidence, object area, bounding box area, relative area, box dimensions, and designated zones. Each method is demonstrated with concise code examples to provide users with a clear understanding of how to implement the filters in their applications.
+Filter detections by class, confidence, size, or location to keep the results
+relevant to your task. Each example compares an `ml-pipes` operator with direct
+filtering of Supervision `Detections`.
 
 The `ml-pipes` examples abbreviate their shared loading and inference prefix as
 `...`; see [Detect and Annotate](detect_and_annotate.md) for the complete
@@ -26,7 +28,7 @@ Allows you to select detections that belong only to one selected class.
         [
             ...,
             Detections.FromInference(),
-            Detections.Filter(lambda detections: detections.class_id == 0),
+            Detections.Filter(lambda detections: detections.class_id == 1),
         ]
     )
 
@@ -36,7 +38,7 @@ Allows you to select detections that belong only to one selected class.
 === "Supervision"
 
     ```python
-    detections = detections[detections.class_id == 0]
+    detections = detections[detections.class_id == 1]
     ```
 
 <div class="filter-comparison" markdown>
@@ -50,16 +52,18 @@ Allows you to select detections that belong only to one selected class.
 </figure>
 </div>
 
+RF-DETR's COCO IDs: `1` (person). Class IDs are model-specific.
+
 ### by set of classes
 
-Allows you to select detections that belong only to selected set of classes.
+Allows you to select detections that belong only to a selected set of classes.
 
 === "ml-pipes"
 
     ```{ .py hl_lines="12-14" }
     import numpy as np
 
-    selected_classes = [0, 2, 3]
+    selected_classes = [1, 3, 4]
 
     from ml_pipes.core import Pipeline
     from ml_pipes.supervision import Detections
@@ -82,7 +86,7 @@ Allows you to select detections that belong only to selected set of classes.
     ```python
     import numpy as np
 
-    selected_classes = [0, 2, 3]
+    selected_classes = [1, 3, 4]
     detections = detections[np.isin(detections.class_id, selected_classes)]
     ```
 
@@ -97,9 +101,11 @@ Allows you to select detections that belong only to selected set of classes.
 </figure>
 </div>
 
+RF-DETR's COCO IDs: `1` (person), `3` (car), and `4` (motorcycle). Class IDs are model-specific.
+
 ### by confidence
 
-Allows you to select detections with specific confidence value, for example higher than selected threshold.
+Select detections by confidence, for example those above a chosen threshold.
 
 === "ml-pipes"
 
@@ -137,7 +143,11 @@ Allows you to select detections with specific confidence value, for example high
 
 ### by area
 
-Allows you to select detections based on their size. We define the area as the number of pixels occupied by the detection in the image. In the example below, we have sifted out the detections that are too small.
+Filter detections by their size. In the example below, detections that are too
+small are removed. `detections.area` uses mask area when available, otherwise
+oriented-box area, then axis-aligned box area.
+Use `detections.box_area` when you specifically need the axis-aligned envelope;
+see the [upstream area reference](https://supervision.roboflow.com/0.30.9/detection/core/#supervision.detection.core.Detections.area).
 
 === "ml-pipes"
 
@@ -218,7 +228,8 @@ Allows you to select detections based on their size in relation to the size of w
 
 ### by box dimensions
 
-Allows you to select detections based on their dimensions. The size of the bounding box, as well as its coordinates, can be criteria for rejecting detection. Implementing such filtering requires a bit of custom code but is relatively simple and fast.
+Select detections based on their bounding box dimensions or coordinates.
+For aspect-ratio filtering, use `detections.box_aspect_ratio` instead.
 
 === "ml-pipes"
 
@@ -262,7 +273,9 @@ Allows you to select detections based on their dimensions. The size of the bound
 
 ### by `PolygonZone`
 
-Allows you to use `Detections` in combination with `PolygonZone` to weed out bounding boxes that are in and out of the zone. In the example below you can see how to filter out all detections located in the lower part of the image.
+Use `Detections` with `PolygonZone` to select objects inside a zone. The
+example filters out detections in the lower part of the image.
+See [Count in Zone](count_in_zone.md) for polygon setup.
 
 === "ml-pipes"
 
@@ -352,27 +365,11 @@ Supervision code.
 </figure>
 </div>
 
-## Frequently Asked Questions
+### remove duplicate detections
 
-### How do I filter detections by class in supervision?
-
-Use NumPy-style boolean indexing: `detections[detections.class_id == 0]` for class 0. Combine with `&` or `|` for multiple conditions.
-
-### How do I filter by confidence threshold?
-
-`detections[detections.confidence > 0.5]` returns only detections above the threshold. Chain with class filters for precise results.
-
-### How do I filter by bounding box area?
-
-`detections[detections.area > 1000]` filters by pixel area. If masks are present, `detections.area` uses mask area; otherwise, if oriented-box coordinates are present, it uses oriented polygon area; all remaining detections use bounding box area from `xyxy`. Use `detections.box_area` when you specifically need axis-aligned bounding box area.
-
-### Can I filter by box aspect ratio or dimensions?
-
-Yes. Use `detections.box_aspect_ratio` for aspect ratio filtering. If you need explicit box dimensions, compute them from `detections.xyxy` as `width = detections.xyxy[:, 2] - detections.xyxy[:, 0]` and `height = detections.xyxy[:, 3] - detections.xyxy[:, 1]`.
-
-### How do I remove duplicate detections (NMS) from my results?
-
-Use `detections.with_nms(threshold=0.5)` — it applies non-maximum suppression on the `xyxy` boxes.
+Non-maximum suppression (NMS) removes overlapping duplicate predictions.
+It uses masks when present; otherwise it uses oriented boxes from `detections.data["xyxyxyxy"]`, falling
+back to axis-aligned `xyxy` boxes. See the [upstream NMS reference](https://supervision.roboflow.com/0.30.9/detection/core/#supervision.detection.core.Detections.with_nms).
 
 ## Author
 

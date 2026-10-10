@@ -13,13 +13,39 @@ permissions:
   contents: read
 
 jobs:
+  dependency-matrix:
+    name: Resolve Supervision compatibility matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install matrix tooling
+        run: python -m pip install packaging pytest
+
+      - name: Test matrix and optional dependency selection
+        run: python -m pytest -q .github/tests
+
+      - name: Resolve lowest and highest permitted releases
+        id: matrix
+        run: |
+          matrix="$(python .github/scripts/supervision_matrix.py --python-versions 3.10 3.11 3.12 3.13)"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
   test:
-    name: Test Python ${{ matrix.python-version }}
+    name: "Compat: Python ${{ matrix.python-version }} | Supervision ${{ matrix.supervision-version }} (${{ matrix.supervision-profile == 'lowest' && 'min' || matrix.supervision-profile == 'highest' && 'latest' || 'min/latest' }})"
+    needs: dependency-matrix
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+      matrix: ${{ fromJSON(needs.dependency-matrix.outputs.matrix) }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -30,10 +56,21 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install package and test dependencies
-        run: python -m pip install -e '.[test]'
+        run: python -m pip install -e '.[test]' 'supervision==${{ matrix.supervision-version }}'
+
+      # Python 3.13 Inference requires Supervision >=0.30.6, so keep the
+      # lowest core release independent of this optional integration.
+      - name: Install optional Inference integration on Python 3.13
+        if: matrix.python-version == '3.13' && matrix.supervision-profile != 'lowest'
+        run: python -m pip install -e '.[test,inference]' 'supervision==${{ matrix.supervision-version }}'
+
+      - name: Verify resolved dependencies
+        run: |
+          python -m pip show supervision
+          python -m pip check
 
       - name: Run tests
-        run: python -m pytest -q
+        run: python -m pytest -q -rs
 
   package:
     name: Build and validate distribution
@@ -64,3 +101,25 @@ jobs:
           artifact-venv/bin/python -m pip install "$wheel_path"
           artifact-venv/bin/python -m pip check
           artifact-venv/bin/python -c 'import ml_pipes.supervision'
+
+  compatibility-summary:
+    # Keep this check name stable for GitHub's required status checks.
+    name: "Compat: Gate"
+    needs: [dependency-matrix, test]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all compatibility jobs succeeded
+        shell: bash
+        env:
+          MATRIX_RESULT: ${{ needs.dependency-matrix.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+        run: |
+          printf 'Matrix resolution: %s\nCompatibility tests: %s\n' \
+            "$MATRIX_RESULT" "$TEST_RESULT"
+          for result in "$MATRIX_RESULT" "$TEST_RESULT"; do
+            if [[ "$result" != "success" ]]; then
+              echo "::error::All compatibility jobs must succeed; failed, cancelled, or skipped jobs are not accepted."
+              exit 1
+            fi
+          done

@@ -31,6 +31,7 @@ from ml_pipes.standard import Recall, Select, Store
 from ml_pipes.vision import Decode, LoadFile
 
 DEFAULT_MODEL_ID = "rfdetr-small"
+# Pretrained RF-DETR aliases use COCO category ID 1 for person.
 DEFAULT_CLASS_ID = 1
 DEFAULT_MIN_CONFIDENCE = 0.5
 DEFAULT_MAX_RELATIVE_AREA = 0.8
@@ -51,12 +52,11 @@ def build_pipeline(
             Select(0),
             Detections.FromInference(),
             Detections.Filter(lambda detections: detections.class_id == DEFAULT_CLASS_ID),
-            Detections.Filter(lambda detections: detections.confidence >= DEFAULT_MIN_CONFIDENCE),
+            Detections.Filter(lambda detections: detections.confidence > DEFAULT_MIN_CONFIDENCE),
             Detections.Filter(
                 lambda detections: (
-                    (detections.xyxy[:, 2] - detections.xyxy[:, 0])
-                    * (detections.xyxy[:, 3] - detections.xyxy[:, 1])
-                    <= DEFAULT_MAX_RELATIVE_AREA * image_shape[0] * image_shape[1]
+                    detections.area
+                    < DEFAULT_MAX_RELATIVE_AREA * image_shape[0] * image_shape[1]
                 )
             ),
             Recall("source_image", prepend=True),

@@ -94,7 +94,7 @@ filtered_pipeline = Pipeline(
         Detections.FromInference(),
         Detections.NMS(threshold=0.1),
         Detections.Filter(
-            lambda detections: detections.area <= 0.10 * frame_shape[0] * frame_shape[1]
+            lambda detections: detections.area < 0.10 * frame_shape[0] * frame_shape[1]
         ),
         Recall("source_frame", prepend=True),
         BoxAnnotator(thickness=2),
@@ -123,7 +123,7 @@ frame_pipeline = Pipeline(
         Detections.NMS(threshold=0.1),
         Detections.Filter(
             lambda detections: detections.area
-            <= 0.10 * frame_shape[0] * frame_shape[1]
+            < 0.10 * frame_shape[0] * frame_shape[1]
         ),
         Recall("source_frame", prepend=True),
         BoxAnnotator(thickness=2),

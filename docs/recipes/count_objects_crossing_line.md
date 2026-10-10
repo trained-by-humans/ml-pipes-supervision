@@ -1,7 +1,7 @@
 ---
 title: Count Line Crossings with Supervision
 description: >-
-  Build an ml-pipes video pipeline with Supervision to detect and track vehicles, count directional line crossings, draw motion traces, and save output.
+  Track objects and count directional line crossings with Supervision and ml-pipes using RF-DETR, YOLO, or your preferred model.
 ---
 
 # Count Objects Crossing a Line
@@ -42,7 +42,7 @@ from ml_pipes.standard import Select
 from ml_pipes.supervision import Detections
 from ml_pipes.supervision.inference import RoboflowInference
 
-model_id = "yolo11x-640"
+model_id = "rfdetr-medium"
 
 detection_pipeline = Pipeline(
     [
@@ -112,7 +112,11 @@ line_pipeline = Pipeline(
 
 Counting requires stable object identities. Add `ByteTrack`, trigger the line zone with tracked detections, draw each object's path, and show its tracker ID in the label.
 
-```{ .py hl_lines="1-2 10-11 13 18" }
+Filter pending detections (`tracker_id == -1`) after tracking so only confirmed
+IDs reach the line counter and traces, as in the
+[upstream notebook](https://github.com/roboflow/supervision/blob/develop/docs/notebooks/count-objects-crossing-the-line.ipynb).
+
+```{ .py hl_lines="1-2 10-12 14 19" }
 from ml_pipes.supervision import TraceAnnotator, TriggerLineZone
 from ml_pipes.supervision.trackers import ByteTrack
 
@@ -122,7 +126,8 @@ frame_pipeline = Pipeline(
         RoboflowInference(model_id=model_id),
         Select(0),
         Detections.FromInference(),
-        ByteTrack(),
+        ByteTrack(track_activation_threshold=0.25),
+        Detections.Filter(lambda detections: detections.tracker_id != -1),
         TriggerLineZone(line_zone),
         Recall("source_frame", prepend=True),
         TraceAnnotator(thickness=4),

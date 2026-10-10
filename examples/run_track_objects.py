@@ -1,5 +1,5 @@
 """
-YOLOv8 video tracking through Roboflow Inference and Supervision-compatible trackers.
+RF-DETR video tracking through Roboflow Inference and Supervision-compatible trackers.
 
 Run from the repo root:
     python examples/run_track_objects.py
@@ -37,7 +37,7 @@ from ml_pipes.supervision import (
 from ml_pipes.core import Pipeline
 from ml_pipes.standard import Recall, Select, Store
 
-DEFAULT_MODEL_ID = "yolov8n-640"
+DEFAULT_MODEL_ID = "rfdetr-small"
 DEFAULT_VIDEO_ASSET = VideoAssets.PEOPLE_WALKING
 TrackerName = Literal["bytetrack", "botsort", "ocsort", "sort"]
 TrackerOperator: TypeAlias = (
@@ -47,7 +47,7 @@ TrackerOperator: TypeAlias = (
 
 def build_tracker(name: TrackerName) -> TrackerOperator:
     if name == "bytetrack":
-        return ByteTrack()
+        return ByteTrack(track_activation_threshold=0.25, minimum_consecutive_frames=1)
     if name == "botsort":
         return BoTSORT()
     if name == "ocsort":
@@ -68,6 +68,7 @@ def build_frame_pipeline(
             Detections.FromInference(),
             Recall("source_frame"),
             tracker,
+            Detections.Filter(lambda detections: detections.tracker_id != -1),
             Recall("source_frame", prepend=True),
             TraceAnnotator(),
             BoxAnnotator(),
@@ -86,7 +87,7 @@ def main() -> int:
     parser.add_argument(
         "--model-id",
         default=DEFAULT_MODEL_ID,
-        help="Roboflow Inference model id. Defaults to the Roboflow-owned YOLOv8n alias.",
+        help="Roboflow Inference model id. Defaults to the RF-DETR small pretrained alias.",
     )
     parser.add_argument(
         "--api-key",

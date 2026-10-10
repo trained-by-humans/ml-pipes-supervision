@@ -4,7 +4,7 @@ Small-object detection through tiled Roboflow Inference and Supervision.
 Run from the repo root:
     python examples/run_detect_small_objects.py
     python examples/run_detect_small_objects.py --input path/to/photo.jpg
-    python examples/run_detect_small_objects.py --model-id yolov8s-640 --slice-wh 320 320 --overlap-wh 80 80
+    python examples/run_detect_small_objects.py --model-id rfdetr-small --slice-wh 320 320 --overlap-wh 80 80
 """
 from __future__ import annotations
 
@@ -29,10 +29,10 @@ from ml_pipes.core import Pipeline
 from ml_pipes.standard import Gather, Pick, Recall, Scatter, Select, Store
 from ml_pipes.vision import Decode, LoadFile, Tile
 
-DEFAULT_MODEL_ID = "yolov8x-640"
-DEFAULT_SLICE_WH = (320, 320)
-DEFAULT_OVERLAP_WH = (80, 80)
-DEFAULT_MAX_CONCURRENCY = 4
+DEFAULT_MODEL_ID = "rfdetr-medium"
+DEFAULT_SLICE_WH = (640, 640)
+DEFAULT_OVERLAP_WH = (100, 100)
+DEFAULT_MAX_CONCURRENCY = 1
 DEFAULT_IOU_THRESHOLD = 0.5
 
 
@@ -59,7 +59,7 @@ def build_pipeline(
             Gather(),
             Recall("tile_rects"),
             Detections.Stitch(),
-            Detections.NMM(iou_threshold=iou_threshold),
+            Detections.NMS(threshold=iou_threshold),
             Store("detections"),
             Recall("source_image"),
             Pick(1),
@@ -81,7 +81,7 @@ def main() -> int:
     parser.add_argument(
         "--model-id",
         default=DEFAULT_MODEL_ID,
-        help="Roboflow Inference model id. Defaults to the Roboflow-owned YOLOv8x alias.",
+        help="Roboflow Inference model id. Defaults to the RF-DETR medium pretrained alias.",
     )
     parser.add_argument(
         "--api-key",
@@ -100,7 +100,7 @@ def main() -> int:
         nargs=2,
         default=list(DEFAULT_SLICE_WH),
         metavar=("W", "H"),
-        help="Tile width and height in pixels. Defaults to 320 320.",
+        help="Tile width and height in pixels. Defaults to 640 640.",
     )
     parser.add_argument(
         "--overlap-wh",
@@ -108,19 +108,19 @@ def main() -> int:
         nargs=2,
         default=list(DEFAULT_OVERLAP_WH),
         metavar=("W", "H"),
-        help="Overlap between tiles in pixels. Defaults to 80 80.",
+        help="Overlap between tiles in pixels. Defaults to 100 100.",
     )
     parser.add_argument(
         "--max-concurrency",
         type=int,
         default=DEFAULT_MAX_CONCURRENCY,
-        help="Maximum parallel tile inference workers. Defaults to 4.",
+        help="Maximum parallel tile inference workers. Defaults to 1.",
     )
     parser.add_argument(
         "--iou-threshold",
         type=float,
         default=DEFAULT_IOU_THRESHOLD,
-        help="IoU threshold for post-stitch NMM merge. Defaults to 0.5.",
+        help="IoU threshold for post-stitch NMS. Defaults to 0.5.",
     )
     args = parser.parse_args()
 

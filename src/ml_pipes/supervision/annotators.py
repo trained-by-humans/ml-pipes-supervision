@@ -848,6 +848,10 @@ class TraceAnnotator:
             color_lookup=color_lookup,
         )
 
+    def reset(self) -> None:
+        """Clear accumulated trajectories before processing an independent video."""
+        self.annotator.reset()
+
     def __call__(
         self,
         scene: npt.NDArray[np.uint8],
@@ -881,6 +885,10 @@ class HeatMapAnnotator:
             top_hue=top_hue,
             low_hue=low_hue,
         )
+
+    def reset(self) -> None:
+        """Clear accumulated heat before processing an independent video."""
+        self.annotator.reset()
 
     def __call__(
         self,

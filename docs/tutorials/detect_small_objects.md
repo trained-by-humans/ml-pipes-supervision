@@ -1,12 +1,16 @@
 ---
 title: Detect Small Objects with Supervision
 description: >-
-  Detect small objects using tiled inference with Supervision and ml-pipes. Compare full-image predictions with sliced detection and stitch the results.
+  Detect small objects with tiled inference using RF-DETR, YOLO, or your preferred model in Supervision and ml-pipes.
 ---
 
 # Detect Small Objects
 
-This guide shows how to detect small objects with [Inference](https://github.com/roboflow/inference) using [`InferenceSlicer`](https://supervision.roboflow.com/latest/detection/tools/inference_slicer/#supervision.detection.tools.inference_slicer.InferenceSlicer).
+Detect small objects with RF-DETR, YOLO, or your preferred model using tiled
+inference in Supervision and `ml-pipes`. The examples use
+[RF-DETR](https://github.com/roboflow/rf-detr) through
+[Inference](https://github.com/roboflow/inference), comparing full-image detection
+with [`InferenceSlicer`](https://supervision.roboflow.com/latest/detection/tools/inference_slicer/#supervision.detection.tools.inference_slicer.InferenceSlicer).
 
 <video controls>
     <source src="https://media.roboflow.com/supervision_detect_small_objects_example.mp4" type="video/mp4">
@@ -33,7 +37,7 @@ Running a standard detection model on the full image establishes a baseline for 
             Decode(),
             ImageToArray(),
             Store("source_image"),
-            RoboflowInference(model_id="yolov8x-640"),
+            RoboflowInference(model_id="rfdetr-medium"),
             Select(0),
             Detections.FromInference(),
             Recall("source_image", prepend=True),
@@ -53,7 +57,7 @@ Running a standard detection model on the full image establishes a baseline for 
     import supervision as sv
     from inference import get_model
 
-    model = get_model(model_id="yolov8x-640")
+    model = get_model(model_id="rfdetr-medium")
     image = cv2.imread("<SOURCE_IMAGE_PATH>")
     results = model.infer(image)[0]
     detections = sv.Detections.from_inference(results)
@@ -76,63 +80,17 @@ Running a standard detection model on the full image establishes a baseline for 
 
 ## Input Resolution
 
-Modifying the input resolution of images before detection can enhance small object identification at the cost of processing speed and increased memory usage. This method is less effective for ultra-high-resolution images (4K and above).
-
-=== "ml-pipes"
-
-    ```{ .py hl_lines="13" }
-    from ml_pipes.core import Pipeline
-    from ml_pipes.standard import Recall, Select, Store
-    from ml_pipes.supervision import BoxAnnotator, Detections, ImageToArray, LabelAnnotator, PlotImage
-    from ml_pipes.supervision.inference import RoboflowInference
-    from ml_pipes.vision import Decode, LoadFile
-
-    pipeline = Pipeline(
-        [
-            LoadFile(),
-            Decode(),
-            ImageToArray(),
-            Store("source_image"),
-            RoboflowInference(model_id="yolov8x-1280"),
-            Select(0),
-            Detections.FromInference(),
-            Recall("source_image", prepend=True),
-            BoxAnnotator(),
-            LabelAnnotator(show_class=True, show_confidence=True),
-            PlotImage(at=0),
-        ]
-    )
-
-    annotated_image, detections = pipeline("<SOURCE_IMAGE_PATH>")
-    ```
-
-=== "Supervision"
-
-    ```{ .py hl_lines="5" }
-    import cv2
-    import supervision as sv
-    from inference import get_model
-
-    model = get_model(model_id="yolov8x-1280")
-    image = cv2.imread("<SOURCE_IMAGE_PATH>")
-    results = model.infer(image)[0]
-    detections = sv.Detections.from_inference(results)
-
-    box_annotator = sv.BoxAnnotator()
-    label_annotator = sv.LabelAnnotator()
-
-    annotated_image = box_annotator.annotate(
-        scene=image, detections=detections)
-    annotated_image = label_annotator.annotate(
-        scene=annotated_image, detections=detections)
-    ```
-
-
-![detection-with-high-input-resolution](https://media.roboflow.com/supervision_detect_small_objects_example_2.png)
+Higher model input resolution can improve small-object detection at a speed
+and memory cost. This is model-specific tuning; see the
+[upstream input-resolution comparison](https://supervision.roboflow.com/0.30.9/how_to/detect_small_objects/#input-resolution).
 
 ## Inference Slicer
 
-[`InferenceSlicer`](https://supervision.roboflow.com/latest/detection/tools/inference_slicer/#supervision.detection.tools.inference_slicer.InferenceSlicer) processes high-resolution images by dividing them into smaller segments, detecting objects within each, and aggregating the results.
+[`InferenceSlicer`](https://supervision.roboflow.com/0.30.9/detection/tools/inference_slicer/#supervision.detection.tools.inference_slicer.InferenceSlicer) processes high-resolution images by dividing them into smaller segments, detecting objects within each, and aggregating the results.
+
+`overlap_wh` is measured in pixels, not percentages. Increase it when objects
+span tile boundaries, at the cost of more inference. The upstream reference
+also describes alternative overlap filters.
 
 <video controls>
     <source src="https://media.roboflow.com/supervision_detect_small_objects_example_2.mp4" type="video/mp4">
@@ -152,17 +110,17 @@ Modifying the input resolution of images before detection can enhance small obje
             LoadFile(),
             Decode(),
             Store("source_image"),
-            Tile(slice_wh=(320, 320), overlap_wh=(80, 80)),
+            Tile(slice_wh=(640, 640), overlap_wh=(100, 100)),
             Store("tile_rects", source=1),
             Pick(0),
-            Scatter(max_concurrency=4),
-            RoboflowInference(model_id="yolov8x-640"),
+            Scatter(max_concurrency=1),
+            RoboflowInference(model_id="rfdetr-medium"),
             Select(0),
             Detections.FromInference(),
             Gather(),
             Recall("tile_rects"),
             Detections.Stitch(),
-            Detections.NMM(iou_threshold=0.5),
+            Detections.NMS(threshold=0.5),
             Store("detections"),
             Recall("source_image"),
             Pick(1),
@@ -185,14 +143,14 @@ Modifying the input resolution of images before detection can enhance small obje
     import supervision as sv
     from inference import get_model
 
-    model = get_model(model_id="yolov8x-640")
+    model = get_model(model_id="rfdetr-medium")
     image = cv2.imread("<SOURCE_IMAGE_PATH>")
 
     def callback(image_slice: np.ndarray) -> sv.Detections:
         results = model.infer(image_slice)[0]
         return sv.Detections.from_inference(results)
 
-    slicer = sv.InferenceSlicer(callback = callback)
+    slicer = sv.InferenceSlicer(callback=callback)
     detections = slicer(image)
 
     box_annotator = sv.BoxAnnotator()
@@ -209,11 +167,13 @@ Modifying the input resolution of images before detection can enhance small obje
 
 ## Small Object Segmentation
 
-[`InferenceSlicer`](https://supervision.roboflow.com/latest/detection/tools/inference_slicer/#supervision.detection.tools.inference_slicer.InferenceSlicer) can perform segmentation tasks too.
+`InferenceSlicer` can perform segmentation tasks too, using the same tile and
+NMS settings as above. To opt into [compact masks](detect_and_annotate.md#compact-masks),
+set `compact_masks=True` in the conversion stage or callback.
 
 === "ml-pipes"
 
-    ```{ .py hl_lines="16 28" }
+    ```{ .py hl_lines="12 16 22 28" }
     from ml_pipes.core import Pipeline
     from ml_pipes.standard import Gather, Pick, Recall, Scatter, Select, Store
     from ml_pipes.supervision import Detections, ImageToArray, LabelAnnotator, MaskAnnotator, PlotImage
@@ -225,17 +185,17 @@ Modifying the input resolution of images before detection can enhance small obje
             LoadFile(),
             Decode(),
             Store("source_image"),
-            Tile(slice_wh=(320, 320), overlap_wh=(80, 80)),
+            Tile(slice_wh=(640, 640), overlap_wh=(100, 100)),
             Store("tile_rects", source=1),
             Pick(0),
-            Scatter(max_concurrency=4),
-            RoboflowInference(model_id="yolov8x-seg-640"),
+            Scatter(max_concurrency=1),
+            RoboflowInference(model_id="rfdetr-seg-medium"),
             Select(0),
             Detections.FromInference(),
             Gather(),
             Recall("tile_rects"),
             Detections.Stitch(),
-            Detections.NMM(iou_threshold=0.5),
+            Detections.NMS(threshold=0.5),
             Store("detections"),
             Recall("source_image"),
             Pick(1),
@@ -258,14 +218,14 @@ Modifying the input resolution of images before detection can enhance small obje
     import supervision as sv
     from inference import get_model
 
-    model = get_model(model_id="yolov8x-seg-640")
+    model = get_model(model_id="rfdetr-seg-medium")
     image = cv2.imread("<SOURCE_IMAGE_PATH>")
 
     def callback(image_slice: np.ndarray) -> sv.Detections:
         results = model.infer(image_slice)[0]
         return sv.Detections.from_inference(results)
 
-    slicer = sv.InferenceSlicer(callback = callback)
+    slicer = sv.InferenceSlicer(callback=callback)
     detections = slicer(image)
 
     mask_annotator = sv.MaskAnnotator()
@@ -279,20 +239,6 @@ Modifying the input resolution of images before detection can enhance small obje
 
 
 ![detection-with-inference-slicer](https://media.roboflow.com/supervision-docs/inference-slicer-segmentation-example.png)
-
-## Frequently Asked Questions
-
-### How do I detect small objects with supervision?
-
-Use `sv.InferenceSlicer` to split a high-resolution image into overlapping tiles, run detection on each tile, and merge results with non-maximum suppression. This dramatically improves recall for tiny targets.
-
-### What overlap should I use between tiles?
-
-`InferenceSlicer` takes overlap in pixels via `overlap_wh`, not as a percentage. The default is `100` pixels in both directions. Increase `overlap_wh` when objects are close to the tile size or often appear on tile boundaries, and decrease it when speed is more important.
-
-### Can I use InferenceSlicer with any detection model?
-
-Yes. Wrap any model or converter path that can produce `sv.Detections` in a callback, pass that callback to `sv.InferenceSlicer(callback=...)`, and then call the slicer with your image.
 
 ## Author
 

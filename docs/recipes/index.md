@@ -1,7 +1,7 @@
 ---
 title: Supervision Pipeline Recipe Reference
 description: >-
-  Find runnable ml-pipes source examples and upstream Supervision notebooks for face blurring, line-crossing counts, and YOLO-World zero-shot detection.
+  Find runnable ml-pipes source examples and upstream Supervision notebooks for face blurring, line-crossing counts, and zero-shot detection.
 ---
 
 # Pipeline Recipe Reference

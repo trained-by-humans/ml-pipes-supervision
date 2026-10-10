@@ -2,8 +2,8 @@
 Count objects crossing a line with Roboflow Inference and Supervision.
 
 Port of Supervision's "Count Objects Crossing the Line" notebook process-video
-section. The upstream `yolo11x.pt` runtime boundary is represented by
-RoboflowInference(model_id="yolo11x-640").
+section. The upstream RF-DETR model is run through
+RoboflowInference(model_id="rfdetr-medium").
 
 Run from the repo root:
     python examples/run_count_objects_crossing_line.py
@@ -37,7 +37,7 @@ from ml_pipes.supervision import (
 from ml_pipes.core import Pipeline
 from ml_pipes.standard import Pick, Recall, Select, Store
 
-DEFAULT_MODEL_ID = "yolo11x-640"
+DEFAULT_MODEL_ID = "rfdetr-medium"
 DEFAULT_VIDEO_ASSET = VideoAssets.VEHICLES
 DEFAULT_OUTPUT_NAME = "count-objects-crossing-the-line-result.mp4"
 LINE_START = sv.Point(0, 1500)
@@ -55,7 +55,8 @@ def build_frame_pipeline(
             RoboflowInference(model_id=model_id, api_key=api_key),
             Select(0),
             Detections.FromInference(),
-            ByteTrack(),
+            ByteTrack(track_activation_threshold=0.25),
+            Detections.Filter(lambda detections: detections.tracker_id != -1),
             TriggerLineZone(line_zone),
             Recall("source_frame", prepend=True),
             TraceAnnotator(thickness=4),
@@ -89,7 +90,7 @@ def main() -> int:
     parser.add_argument(
         "--model-id",
         default=DEFAULT_MODEL_ID,
-        help="Roboflow Inference model id. Defaults to the notebook's YOLO11x equivalent.",
+        help="Roboflow Inference model id. Defaults to the RF-DETR medium pretrained alias.",
     )
     parser.add_argument(
         "--api-key",

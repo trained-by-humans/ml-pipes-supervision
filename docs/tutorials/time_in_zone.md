@@ -1,6 +1,6 @@
 ---
 title: Measure Time in Zones with Supervision
-description: Measure and annotate how long tracked objects remain in a video zone with Supervision and ml-pipes.
+description: Measure time spent in video zones with Supervision and ml-pipes using detections from RF-DETR, YOLO, or your preferred model.
 ---
 
 # Time in Zone
@@ -29,7 +29,7 @@ video_path = download_assets(VideoAssets.PEOPLE_WALKING)
 Supervision `Detections`, then pass the detections through `ByteTrack` so the
 same person receives a stable tracker ID across frames.
 
-```python
+```{ .py hl_lines="16" }
 import supervision as sv
 
 from ml_pipes.core import Pipeline
@@ -41,18 +41,19 @@ from ml_pipes.supervision.trackers import ByteTrack
 pipeline = Pipeline(
     [
         Store("source_frame"),
-        RoboflowInference(model_id="yolov8n-640"),
+        RoboflowInference(model_id="rfdetr-medium", confidence=0.3, iou_threshold=0.7),
         Select(0),
         Detections.FromInference(),
-        ByteTrack(),
+        ByteTrack(track_activation_threshold=0.3, minimum_iou_threshold=0.5),
+        Detections.Filter(lambda detections: detections.tracker_id != -1),
     ],
     auto_validate=True,
 )
 ```
 
-`ByteTrack` can emit a negative ID while a detection has not yet been
-confirmed. The timer treats those transient detections as untracked and assigns
-them a duration of zero.
+Discard detections with `tracker_id == -1` after tracking; they do not yet have
+a confirmed identity. This keeps pending detections out of zone timing and
+traces, as in the [upstream time-in-zone example](https://github.com/roboflow/supervision/blob/develop/examples/time_in_zone/inference_file_example.py).
 
 ## Zone Filtering
 
@@ -62,7 +63,7 @@ whatever detection stream reaches it, so placing it after `TriggerZone` makes
 the value specifically time in this zone. It uses the source video's frame
 rate to convert elapsed frames into seconds.
 
-```{ .py hl_lines="25-26" }
+```{ .py hl_lines="26-27" }
 import numpy as np
 
 from ml_pipes.supervision import TrackingTimer, TriggerZone
@@ -78,15 +79,16 @@ polygon = np.array(
     ],
     dtype=np.int64,
 )
-zone = sv.PolygonZone(polygon=polygon)
+zone = sv.PolygonZone(polygon=polygon, triggering_anchors=(sv.Position.CENTER,))
 
 pipeline = Pipeline(
     [
         Store("source_frame"),
-        RoboflowInference(model_id="yolov8n-640"),
+        RoboflowInference(model_id="rfdetr-medium", confidence=0.3, iou_threshold=0.7),
         Select(0),
         Detections.FromInference(),
-        ByteTrack(),
+        ByteTrack(track_activation_threshold=0.3, minimum_iou_threshold=0.5),
+        Detections.Filter(lambda detections: detections.tracker_id != -1),
         TriggerZone(zone),
         TrackingTimer(video_info.fps, field="time_in_zone"),
     ],
@@ -107,7 +109,7 @@ the tracker ID with the `time_in_zone` field created by the timer.
 `BoxAnnotator`, `TraceAnnotator`, and `PolygonZoneAnnotator` add the remaining
 visual context.
 
-```{ .py hl_lines="19-30" }
+```{ .py hl_lines="20-31" }
 from ml_pipes.standard import Pick, Recall
 from ml_pipes.supervision import (
     BoxAnnotator,
@@ -120,10 +122,11 @@ from ml_pipes.supervision import (
 pipeline = Pipeline(
     [
         Store("source_frame"),
-        RoboflowInference(model_id="yolov8n-640"),
+        RoboflowInference(model_id="rfdetr-medium", confidence=0.3, iou_threshold=0.7),
         Select(0),
         Detections.FromInference(),
-        ByteTrack(),
+        ByteTrack(track_activation_threshold=0.3, minimum_iou_threshold=0.5),
+        Detections.Filter(lambda detections: detections.tracker_id != -1),
         TriggerZone(zone),
         TrackingTimer(video_info.fps, field="time_in_zone"),
         Recall("source_frame", prepend=True),
