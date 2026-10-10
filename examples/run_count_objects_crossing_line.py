@@ -55,7 +55,7 @@ def build_frame_pipeline(
             RoboflowInference(model_id=model_id, api_key=api_key),
             Select(0),
             Detections.FromInference(),
-            ByteTrack(),
+            ByteTrack(track_activation_threshold=0.25),
             Detections.Filter(lambda detections: detections.tracker_id != -1),
             TriggerLineZone(line_zone),
             Recall("source_frame", prepend=True),

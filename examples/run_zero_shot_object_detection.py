@@ -74,9 +74,8 @@ def build_frame_pipeline(
             Detections.NMS(threshold=DEFAULT_NMS_THRESHOLD),
             Detections.Filter(
                 lambda detections: (
-                    (detections.xyxy[:, 2] - detections.xyxy[:, 0])
-                    * (detections.xyxy[:, 3] - detections.xyxy[:, 1])
-                    <= DEFAULT_MAX_RELATIVE_AREA * image_shape[0] * image_shape[1]
+                    detections.area
+                    < DEFAULT_MAX_RELATIVE_AREA * image_shape[0] * image_shape[1]
                 )
             ),
             Recall("source_frame", prepend=True),

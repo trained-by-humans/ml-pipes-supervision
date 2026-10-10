@@ -445,7 +445,7 @@ def build_frame_pipeline(
             Select(0),
             Detections.FromUltralytics(),
             Detections.Filter(keep_vehicle_detections),
-            ByteTrack(),
+            ByteTrack(track_activation_threshold=0.3),
             TrackZoneVisits(
                 zones,
                 start_zone_ids=ENTRY_ZONE_IDS,
@@ -458,7 +458,12 @@ def build_frame_pipeline(
             Recall("source_frame", prepend=True),
             BoxAnnotator(color=COLORS, custom_color_lookup=zone_visit_color_lookup),
             LabelAnnotator(show_tracker_id=True, color=COLORS, custom_color_lookup=zone_visit_color_lookup),
-            TraceAnnotator(thickness=2, color=COLORS, custom_color_lookup=zone_visit_color_lookup),
+            TraceAnnotator(
+                trace_length=100,
+                thickness=2,
+                color=COLORS,
+                custom_color_lookup=zone_visit_color_lookup,
+            ),
             Recall("zone_visit_metrics"),
             ZoneTransitionAnnotator(zones),
             ImageWindow("Traffic Zone Visit Analytics", at=0),

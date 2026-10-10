@@ -116,7 +116,7 @@ ByteTrack tracks boxes, not mask geometry. For segmentation results,
             RoboflowInference(model_id="rfdetr-small"),
             Select(0),
             Detections.FromInference(),
-            ByteTrack(),
+            ByteTrack(track_activation_threshold=0.25, minimum_consecutive_frames=1),
             Recall("source_frame", prepend=True),
             BoxAnnotator(),
         ]
@@ -142,7 +142,7 @@ ByteTrack tracks boxes, not mask geometry. For segmentation results,
     from inference.models.utils import get_roboflow_model
 
     model = get_roboflow_model(model_id="rfdetr-small", api_key="<ROBOFLOW_API_KEY>")
-    tracker = trackers.ByteTrackTracker()
+    tracker = trackers.ByteTrackTracker(track_activation_threshold=0.25, minimum_consecutive_frames=1)
     box_annotator = sv.BoxAnnotator()
 
     def callback(frame: np.ndarray, _: int) -> np.ndarray:
@@ -165,7 +165,7 @@ updates the detections.
 
 The tracker returns `-1` for detections without a confirmed track. Filter those
 out after tracking, before drawing ID labels or traces, as in the
-[upstream tutorial](https://supervision.roboflow.com/latest/how_to/track_objects/#annotate-video-with-tracking-ids).
+[upstream tutorial source](https://github.com/roboflow/supervision/blob/develop/docs/how_to/track_objects.md#annotate-video-with-tracking-ids).
 
 === "ml-pipes"
 
@@ -184,7 +184,7 @@ out after tracking, before drawing ID labels or traces, as in the
             RoboflowInference(model_id="rfdetr-small"),
             Select(0),
             Detections.FromInference(),
-            ByteTrack(),
+            ByteTrack(track_activation_threshold=0.25, minimum_consecutive_frames=1),
             Detections.Filter(lambda detections: detections.tracker_id != -1),
             Recall("source_frame", prepend=True),
             BoxAnnotator(),
@@ -212,7 +212,7 @@ out after tracking, before drawing ID labels or traces, as in the
     from inference.models.utils import get_roboflow_model
 
     model = get_roboflow_model(model_id="rfdetr-small", api_key="<ROBOFLOW_API_KEY>")
-    tracker = trackers.ByteTrackTracker()
+    tracker = trackers.ByteTrackTracker(track_activation_threshold=0.25, minimum_consecutive_frames=1)
     box_annotator = sv.BoxAnnotator()
     label_annotator = sv.LabelAnnotator()
 
@@ -266,7 +266,7 @@ label layers.
             RoboflowInference(model_id="rfdetr-small"),
             Select(0),
             Detections.FromInference(),
-            ByteTrack(),
+            ByteTrack(track_activation_threshold=0.25, minimum_consecutive_frames=1),
             Detections.Filter(lambda detections: detections.tracker_id != -1),
             Recall("source_frame", prepend=True),
             BoxAnnotator(),
@@ -295,7 +295,7 @@ label layers.
     from inference.models.utils import get_roboflow_model
 
     model = get_roboflow_model(model_id="rfdetr-small", api_key="<ROBOFLOW_API_KEY>")
-    tracker = trackers.ByteTrackTracker()
+    tracker = trackers.ByteTrackTracker(track_activation_threshold=0.25, minimum_consecutive_frames=1)
     box_annotator = sv.BoxAnnotator()
     label_annotator = sv.LabelAnnotator()
     trace_annotator = sv.TraceAnnotator()
@@ -358,7 +358,7 @@ Reuse the same pipeline or stateful objects for the whole video.
             RoboflowInference(model_id="rfdetr-small"),
             Select(0),
             Detections.FromInference(),
-            ByteTrack(),
+            ByteTrack(track_activation_threshold=0.25, minimum_consecutive_frames=1),
             Detections.Filter(lambda detections: detections.tracker_id != -1),
             DetectionsSmoother(length=5),
             Recall("source_frame", prepend=True),
@@ -388,7 +388,7 @@ Reuse the same pipeline or stateful objects for the whole video.
     from inference.models.utils import get_roboflow_model
 
     model = get_roboflow_model(model_id="rfdetr-small", api_key="<ROBOFLOW_API_KEY>")
-    tracker = trackers.ByteTrackTracker()
+    tracker = trackers.ByteTrackTracker(track_activation_threshold=0.25, minimum_consecutive_frames=1)
     smoother = sv.DetectionsSmoother(length=5)
     box_annotator = sv.BoxAnnotator()
     label_annotator = sv.LabelAnnotator()

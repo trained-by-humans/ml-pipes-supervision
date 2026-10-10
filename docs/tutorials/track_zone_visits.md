@@ -74,7 +74,7 @@ pipeline = Pipeline(
         Select(0),
         Detections.FromUltralytics(),
         Detections.Filter(keep_vehicle_detections),
-        ByteTrack(),
+        ByteTrack(track_activation_threshold=0.3),
         Recall("source_frame", prepend=True),
         BoxAnnotator(),
         LabelAnnotator(show_tracker_id=True),
@@ -100,7 +100,7 @@ Retain only vehicles with that history, then color their boxes, labels, and
 traces using the entry zone. Drawing traces last leaves the current vehicle
 position and its ID clear above the historical path.
 
-```{ .py hl_lines="9 12-14 24-44" }
+```{ .py hl_lines="9 12-14 24-45" }
 from examples.run_traffic_analysis import (
     COLORS,
     ENTRY_ZONE_IDS,
@@ -123,7 +123,7 @@ pipeline = Pipeline(
         Select(0),
         Detections.FromUltralytics(),
         Detections.Filter(keep_vehicle_detections),
-        ByteTrack(),
+        ByteTrack(track_activation_threshold=0.3),
         TrackZoneVisits(
             TRAFFIC_ZONE_POLYGONS,
             start_zone_ids=ENTRY_ZONE_IDS,
@@ -141,6 +141,7 @@ pipeline = Pipeline(
             custom_color_lookup=zone_visit_color_lookup,
         ),
         TraceAnnotator(
+            trace_length=100,
             thickness=2,
             color=COLORS,
             custom_color_lookup=zone_visit_color_lookup,
@@ -168,7 +169,7 @@ restore it for `ZoneTransitionAnnotator` after the normal annotation stages.
 returns the metrics unchanged. The final pipeline value therefore remains
 available to a later reporting, export, or alerting stage.
 
-```{ .py hl_lines="21-23 40-42" }
+```{ .py hl_lines="21-23 41-43" }
 from examples.run_traffic_analysis import (
     ZoneTransitionAnnotator,
     ZoneVisitAnalytics,
@@ -183,7 +184,7 @@ pipeline = Pipeline(
         Select(0),
         Detections.FromUltralytics(),
         Detections.Filter(keep_vehicle_detections),
-        ByteTrack(),
+        ByteTrack(track_activation_threshold=0.3),
         TrackZoneVisits(
             TRAFFIC_ZONE_POLYGONS,
             start_zone_ids=ENTRY_ZONE_IDS,
@@ -204,6 +205,7 @@ pipeline = Pipeline(
             custom_color_lookup=zone_visit_color_lookup,
         ),
         TraceAnnotator(
+            trace_length=100,
             thickness=2,
             color=COLORS,
             custom_color_lookup=zone_visit_color_lookup,

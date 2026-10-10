@@ -126,7 +126,7 @@ frame_pipeline = Pipeline(
         RoboflowInference(model_id=model_id),
         Select(0),
         Detections.FromInference(),
-        ByteTrack(),
+        ByteTrack(track_activation_threshold=0.25),
         Detections.Filter(lambda detections: detections.tracker_id != -1),
         TriggerLineZone(line_zone),
         Recall("source_frame", prepend=True),

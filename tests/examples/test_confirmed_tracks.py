@@ -69,7 +69,8 @@ def test_examples_filter_pending_tracks_before_counting_and_traces(
     upstream_class = upstream_classes[tracker_name]
     upstream = create_autospec(upstream_class, instance=True)
     upstream.update.return_value = tracked
-    monkeypatch.setattr(tracker_ops, upstream_class.__name__, lambda **_: upstream)
+    construct = create_autospec(upstream_class, return_value=upstream)
+    monkeypatch.setattr(tracker_ops, upstream_class.__name__, construct)
     monkeypatch.setattr(sv.ImageWindow, "show", lambda *_: None)
 
     expected_ids = [tracker_id for tracker_id in tracker_ids if tracker_id != -1]
@@ -111,10 +112,30 @@ def test_examples_filter_pending_tracks_before_counting_and_traces(
     result = pipeline(frame)
 
     assert consumer_ids == [expected_ids] * (2 if zone is not None else 1)
+    construct.assert_called_once()
+    if tracker_name == "bytetrack":
+        expected_options = {
+            "run_count_objects_crossing_line": (0.25, 2, 0.1),
+            "run_time_in_zone": (0.3, 2, 0.5),
+            "run_track_objects": (0.25, 1, 0.1),
+        }[example_name]
+        assert tuple(
+            construct.call_args.kwargs[key]
+            for key in (
+                "track_activation_threshold",
+                "minimum_consecutive_frames",
+                "minimum_iou_threshold",
+            )
+        ) == expected_options
     upstream.update.assert_called_once()
     assert len(upstream.update.call_args.args[0]) == 3
     assert tracked.tracker_id.tolist() == list(tracker_ids)
-    model.infer.assert_called_once_with(frame)
+    infer_kwargs = (
+        {"confidence": 0.3, "iou_threshold": 0.7}
+        if example_name == "run_time_in_zone"
+        else {}
+    )
+    model.infer.assert_called_once_with(frame, **infer_kwargs)
     assert not np.any(frame)
     annotated_frame = (
         result if example_name == "run_count_objects_crossing_line" else result[0]

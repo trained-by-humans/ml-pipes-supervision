@@ -88,10 +88,6 @@ and memory cost. This is model-specific tuning; see the
 
 [`InferenceSlicer`](https://supervision.roboflow.com/0.30.9/detection/tools/inference_slicer/#supervision.detection.tools.inference_slicer.InferenceSlicer) processes high-resolution images by dividing them into smaller segments, detecting objects within each, and aggregating the results.
 
-The Supervision examples use the slicer's defaults: 640×640-pixel tiles,
-100-pixel overlap, and non-maximum suppression (NMS) at an IoU threshold of 0.5.
-The `ml-pipes` examples set those values explicitly.
-
 `overlap_wh` is measured in pixels, not percentages. Increase it when objects
 span tile boundaries, at the cost of more inference. The upstream reference
 also describes alternative overlap filters.
@@ -117,7 +113,7 @@ also describes alternative overlap filters.
             Tile(slice_wh=(640, 640), overlap_wh=(100, 100)),
             Store("tile_rects", source=1),
             Pick(0),
-            Scatter(max_concurrency=4),
+            Scatter(max_concurrency=1),
             RoboflowInference(model_id="rfdetr-medium"),
             Select(0),
             Detections.FromInference(),
@@ -192,7 +188,7 @@ set `compact_masks=True` in the conversion stage or callback.
             Tile(slice_wh=(640, 640), overlap_wh=(100, 100)),
             Store("tile_rects", source=1),
             Pick(0),
-            Scatter(max_concurrency=4),
+            Scatter(max_concurrency=1),
             RoboflowInference(model_id="rfdetr-seg-medium"),
             Select(0),
             Detections.FromInference(),

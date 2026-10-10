@@ -32,7 +32,7 @@ from ml_pipes.supervision import (
 from ml_pipes.core import Pipeline
 from ml_pipes.standard import Recall, Select, Store
 
-DEFAULT_MODEL_ID = "rfdetr-small"
+DEFAULT_MODEL_ID = "rfdetr-medium"
 DEFAULT_VIDEO_ASSET = VideoAssets.PEOPLE_WALKING
 ZONE_FRACTIONS = ((0.2, 0.2), (0.8, 0.2), (0.8, 0.8), (0.2, 0.8))
 
@@ -42,7 +42,7 @@ def build_zone(width: int, height: int) -> sv.PolygonZone:
     polygon = np.asarray(
         [[x * width, y * height] for x, y in ZONE_FRACTIONS], dtype=np.int64
     )
-    return sv.PolygonZone(polygon=polygon)
+    return sv.PolygonZone(polygon=polygon, triggering_anchors=(sv.Position.CENTER,))
 
 
 def build_frame_pipeline(
@@ -54,10 +54,12 @@ def build_frame_pipeline(
     return Pipeline(
         [
             Store("source_frame"),
-            RoboflowInference(model_id=model_id, api_key=api_key),
+            RoboflowInference(
+                model_id=model_id, api_key=api_key, confidence=0.3, iou_threshold=0.7
+            ),
             Select(0),
             Detections.FromInference(),
-            ByteTrack(),
+            ByteTrack(track_activation_threshold=0.3, minimum_iou_threshold=0.5),
             Detections.Filter(lambda detections: detections.tracker_id != -1),
             TriggerZone(zone),
             TrackingTimer(fps, field="time_in_zone"),
@@ -86,7 +88,7 @@ def main() -> int:
     parser.add_argument(
         "--model-id",
         default=DEFAULT_MODEL_ID,
-        help="Roboflow Inference model id. Defaults to the RF-DETR small pretrained alias.",
+        help="Roboflow Inference model id. Defaults to the RF-DETR medium pretrained alias.",
     )
     parser.add_argument(
         "--api-key",

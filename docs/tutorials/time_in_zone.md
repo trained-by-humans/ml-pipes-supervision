@@ -41,10 +41,10 @@ from ml_pipes.supervision.trackers import ByteTrack
 pipeline = Pipeline(
     [
         Store("source_frame"),
-        RoboflowInference(model_id="rfdetr-small"),
+        RoboflowInference(model_id="rfdetr-medium", confidence=0.3, iou_threshold=0.7),
         Select(0),
         Detections.FromInference(),
-        ByteTrack(),
+        ByteTrack(track_activation_threshold=0.3, minimum_iou_threshold=0.5),
         Detections.Filter(lambda detections: detections.tracker_id != -1),
     ],
     auto_validate=True,
@@ -79,15 +79,15 @@ polygon = np.array(
     ],
     dtype=np.int64,
 )
-zone = sv.PolygonZone(polygon=polygon)
+zone = sv.PolygonZone(polygon=polygon, triggering_anchors=(sv.Position.CENTER,))
 
 pipeline = Pipeline(
     [
         Store("source_frame"),
-        RoboflowInference(model_id="rfdetr-small"),
+        RoboflowInference(model_id="rfdetr-medium", confidence=0.3, iou_threshold=0.7),
         Select(0),
         Detections.FromInference(),
-        ByteTrack(),
+        ByteTrack(track_activation_threshold=0.3, minimum_iou_threshold=0.5),
         Detections.Filter(lambda detections: detections.tracker_id != -1),
         TriggerZone(zone),
         TrackingTimer(video_info.fps, field="time_in_zone"),
@@ -122,10 +122,10 @@ from ml_pipes.supervision import (
 pipeline = Pipeline(
     [
         Store("source_frame"),
-        RoboflowInference(model_id="rfdetr-small"),
+        RoboflowInference(model_id="rfdetr-medium", confidence=0.3, iou_threshold=0.7),
         Select(0),
         Detections.FromInference(),
-        ByteTrack(),
+        ByteTrack(track_activation_threshold=0.3, minimum_iou_threshold=0.5),
         Detections.Filter(lambda detections: detections.tracker_id != -1),
         TriggerZone(zone),
         TrackingTimer(video_info.fps, field="time_in_zone"),

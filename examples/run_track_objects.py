@@ -47,7 +47,7 @@ TrackerOperator: TypeAlias = (
 
 def build_tracker(name: TrackerName) -> TrackerOperator:
     if name == "bytetrack":
-        return ByteTrack()
+        return ByteTrack(track_activation_threshold=0.25, minimum_consecutive_frames=1)
     if name == "botsort":
         return BoTSORT()
     if name == "ocsort":
