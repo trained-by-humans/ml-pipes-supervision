@@ -5,16 +5,19 @@ build-backend = "hatchling.build"
 [project]
 name = "ml-pipes-supervision"
 version = "0.1.2rc2"
-description = "Roboflow Supervision and Inference compatibility wrappers for ml-pipes"
+description = "Compose computer-vision pipelines with ml-pipes, using Supervision operators for annotation, tracking, detection processing, and zone counting."
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 keywords = [
     "annotation",
     "computer-vision",
+    "ml-pipes",
+    "pipeline-composition",
     "pipelines",
     "supervision",
     "tracking",
+    "zone-counting",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
