@@ -28,7 +28,7 @@ Allows you to select detections that belong only to one selected class.
         [
             ...,
             Detections.FromInference(),
-            Detections.Filter(lambda detections: detections.class_id == 0),
+            Detections.Filter(lambda detections: detections.class_id == 1),
         ]
     )
 
@@ -38,7 +38,7 @@ Allows you to select detections that belong only to one selected class.
 === "Supervision"
 
     ```python
-    detections = detections[detections.class_id == 0]
+    detections = detections[detections.class_id == 1]
     ```
 
 <div class="filter-comparison" markdown>
@@ -52,6 +52,8 @@ Allows you to select detections that belong only to one selected class.
 </figure>
 </div>
 
+RF-DETR's COCO IDs: `1` (person). Class IDs are model-specific.
+
 ### by set of classes
 
 Allows you to select detections that belong only to a selected set of classes.
@@ -61,7 +63,7 @@ Allows you to select detections that belong only to a selected set of classes.
     ```{ .py hl_lines="12-14" }
     import numpy as np
 
-    selected_classes = [0, 2, 3]
+    selected_classes = [1, 3, 4]
 
     from ml_pipes.core import Pipeline
     from ml_pipes.supervision import Detections
@@ -84,7 +86,7 @@ Allows you to select detections that belong only to a selected set of classes.
     ```python
     import numpy as np
 
-    selected_classes = [0, 2, 3]
+    selected_classes = [1, 3, 4]
     detections = detections[np.isin(detections.class_id, selected_classes)]
     ```
 
@@ -98,6 +100,8 @@ Allows you to select detections that belong only to a selected set of classes.
 <figcaption>After</figcaption>
 </figure>
 </div>
+
+RF-DETR's COCO IDs: `1` (person), `3` (car), and `4` (motorcycle). Class IDs are model-specific.
 
 ### by confidence
 

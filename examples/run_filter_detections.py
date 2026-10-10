@@ -31,7 +31,8 @@ from ml_pipes.standard import Recall, Select, Store
 from ml_pipes.vision import Decode, LoadFile
 
 DEFAULT_MODEL_ID = "rfdetr-small"
-DEFAULT_CLASS_ID = 0
+# Pretrained RF-DETR aliases use COCO category ID 1 for person.
+DEFAULT_CLASS_ID = 1
 DEFAULT_MIN_CONFIDENCE = 0.5
 DEFAULT_MAX_RELATIVE_AREA = 0.8
 

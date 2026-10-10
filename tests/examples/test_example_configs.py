@@ -67,7 +67,7 @@ def test_filter_example_composes_class_and_strict_boundary_filters(example_facto
             [[0, 0, 79, 100], [0, 0, 79, 100], [0, 0, 79, 100], [0, 0, 80, 100]],
             dtype=np.float32,
         ),
-        class_id=np.asarray([0, 1, 0, 0]),
+        class_id=np.asarray([1, 3, 1, 1]),
         confidence=np.asarray([0.9, 0.9, 0.5, 0.9], dtype=np.float32),
     )
     filtered = detections
@@ -76,6 +76,7 @@ def test_filter_example_composes_class_and_strict_boundary_filters(example_facto
             filtered = operator(filtered)
 
     assert example.DEFAULT_MODEL_ID == "rfdetr-small"
+    assert example.DEFAULT_CLASS_ID == 1
     np.testing.assert_array_equal(filtered.xyxy, detections.xyxy[:1])
     assert len(detections) == 4
 
