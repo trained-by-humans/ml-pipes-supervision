@@ -163,9 +163,13 @@ ByteTrack tracks boxes, not mask geometry. For segmentation results,
 Add persistent IDs and class names with `LabelAnnotator` after the tracker
 updates the detections.
 
+The tracker returns `-1` for detections without a confirmed track. Filter those
+out after tracking, before drawing ID labels or traces, as in the
+[upstream tutorial](https://supervision.roboflow.com/latest/how_to/track_objects/#annotate-video-with-tracking-ids).
+
 === "ml-pipes"
 
-    ```{ .py hl_lines="18" }
+    ```{ .py hl_lines="16 19" }
     import supervision as sv
 
     from ml_pipes.core import Pipeline
@@ -181,6 +185,7 @@ updates the detections.
             Select(0),
             Detections.FromInference(),
             ByteTrack(),
+            Detections.Filter(lambda detections: detections.tracker_id != -1),
             Recall("source_frame", prepend=True),
             BoxAnnotator(),
             LabelAnnotator(show_tracker_id=True, show_class=True),
@@ -200,7 +205,7 @@ updates the detections.
 
 === "Supervision"
 
-    ```{ .py hl_lines="9 16-20 24-25" }
+    ```{ .py hl_lines="9 15 17-21 25-26" }
     import numpy as np
     import supervision as sv
     import trackers
@@ -215,6 +220,7 @@ updates the detections.
         results = model.infer(frame)[0]
         detections = sv.Detections.from_inference(results)
         detections = tracker.update(detections)
+        detections = detections[detections.tracker_id != -1]
 
         labels = [
             f"#{tracker_id} {class_name}"
@@ -245,7 +251,7 @@ label layers.
 
 === "ml-pipes"
 
-    ```{ .py hl_lines="19" }
+    ```{ .py hl_lines="20" }
     import supervision as sv
 
     from ml_pipes.core import Pipeline
@@ -261,6 +267,7 @@ label layers.
             Select(0),
             Detections.FromInference(),
             ByteTrack(),
+            Detections.Filter(lambda detections: detections.tracker_id != -1),
             Recall("source_frame", prepend=True),
             BoxAnnotator(),
             LabelAnnotator(show_tracker_id=True, show_class=True),
@@ -281,7 +288,7 @@ label layers.
 
 === "Supervision"
 
-    ```{ .py hl_lines="10 27-28" }
+    ```{ .py hl_lines="10 28-29" }
     import numpy as np
     import supervision as sv
     import trackers
@@ -297,6 +304,7 @@ label layers.
         results = model.infer(frame)[0]
         detections = sv.Detections.from_inference(results)
         detections = tracker.update(detections)
+        detections = detections[detections.tracker_id != -1]
 
         labels = [
             f"#{tracker_id} {class_name}"
@@ -324,8 +332,9 @@ label layers.
 
 ## Smooth Tracked Detections
 
-For detection-only video, optionally place `DetectionsSmoother` after `ByteTrack`
-and before annotation. It requires tracker IDs and does not support segmentation;
+For detection-only video, optionally place `DetectionsSmoother` after tracking
+and the confirmed-track filter, before annotation. It requires tracker IDs and
+does not support segmentation;
 `length` is the smoothing window in frames. See the [upstream smoother reference](https://supervision.roboflow.com/0.30.9/detection/tools/smoother/#supervision.detection.tools.smoother.DetectionsSmoother).
 
 Extend the previous trace-annotation flow with the highlighted smoothing stage.
@@ -334,7 +343,7 @@ Reuse the same pipeline or stateful objects for the whole video.
 
 === "ml-pipes"
 
-    ```{ .py hl_lines="5 16" }
+    ```{ .py hl_lines="5 17" }
     import supervision as sv
 
     from ml_pipes.core import Pipeline
@@ -350,6 +359,7 @@ Reuse the same pipeline or stateful objects for the whole video.
             Select(0),
             Detections.FromInference(),
             ByteTrack(),
+            Detections.Filter(lambda detections: detections.tracker_id != -1),
             DetectionsSmoother(length=5),
             Recall("source_frame", prepend=True),
             BoxAnnotator(),
@@ -371,7 +381,7 @@ Reuse the same pipeline or stateful objects for the whole video.
 
 === "Supervision"
 
-    ```{ .py hl_lines="8 17" }
+    ```{ .py hl_lines="8 18" }
     import numpy as np
     import supervision as sv
     import trackers
@@ -388,6 +398,7 @@ Reuse the same pipeline or stateful objects for the whole video.
         results = model.infer(frame)[0]
         detections = sv.Detections.from_inference(results)
         detections = tracker.update(detections)
+        detections = detections[detections.tracker_id != -1]
         detections = smoother.update_with_detections(detections)
 
         labels = [

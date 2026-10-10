@@ -29,7 +29,7 @@ video_path = download_assets(VideoAssets.PEOPLE_WALKING)
 Supervision `Detections`, then pass the detections through `ByteTrack` so the
 same person receives a stable tracker ID across frames.
 
-```python
+```{ .py hl_lines="16" }
 import supervision as sv
 
 from ml_pipes.core import Pipeline
@@ -45,14 +45,15 @@ pipeline = Pipeline(
         Select(0),
         Detections.FromInference(),
         ByteTrack(),
+        Detections.Filter(lambda detections: detections.tracker_id != -1),
     ],
     auto_validate=True,
 )
 ```
 
-`ByteTrack` can emit a negative ID while a detection has not yet been
-confirmed. The timer treats those transient detections as untracked and assigns
-them a duration of zero.
+Discard detections with `tracker_id == -1` after tracking; they do not yet have
+a confirmed identity. This keeps pending detections out of zone timing and
+traces, as in the [upstream time-in-zone example](https://github.com/roboflow/supervision/blob/develop/examples/time_in_zone/inference_file_example.py).
 
 ## Zone Filtering
 
@@ -62,7 +63,7 @@ whatever detection stream reaches it, so placing it after `TriggerZone` makes
 the value specifically time in this zone. It uses the source video's frame
 rate to convert elapsed frames into seconds.
 
-```{ .py hl_lines="25-26" }
+```{ .py hl_lines="26-27" }
 import numpy as np
 
 from ml_pipes.supervision import TrackingTimer, TriggerZone
@@ -87,6 +88,7 @@ pipeline = Pipeline(
         Select(0),
         Detections.FromInference(),
         ByteTrack(),
+        Detections.Filter(lambda detections: detections.tracker_id != -1),
         TriggerZone(zone),
         TrackingTimer(video_info.fps, field="time_in_zone"),
     ],
@@ -107,7 +109,7 @@ the tracker ID with the `time_in_zone` field created by the timer.
 `BoxAnnotator`, `TraceAnnotator`, and `PolygonZoneAnnotator` add the remaining
 visual context.
 
-```{ .py hl_lines="19-30" }
+```{ .py hl_lines="20-31" }
 from ml_pipes.standard import Pick, Recall
 from ml_pipes.supervision import (
     BoxAnnotator,
@@ -124,6 +126,7 @@ pipeline = Pipeline(
         Select(0),
         Detections.FromInference(),
         ByteTrack(),
+        Detections.Filter(lambda detections: detections.tracker_id != -1),
         TriggerZone(zone),
         TrackingTimer(video_info.fps, field="time_in_zone"),
         Recall("source_frame", prepend=True),

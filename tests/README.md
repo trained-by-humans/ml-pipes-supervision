@@ -10,8 +10,8 @@ python -m pip install -e '.[test,inference]' packaging
 `packaging` is used by the CI-helper tests. The tests never download or execute
 models. On Python 3.13, the `inference` extra requires Supervision >=0.30.6.
 Use only `.[test]` to test the core integration at its 0.30.0 floor; when Inference
-is absent, only `test_inference.py` skips. An installed Inference package's
-import failures are not skipped.
+is absent, Inference wrapper and dependent example tests skip. An installed
+Inference package's import failures are not skipped.
 
 ## Running tests
 

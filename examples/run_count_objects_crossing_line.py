@@ -56,6 +56,7 @@ def build_frame_pipeline(
             Select(0),
             Detections.FromInference(),
             ByteTrack(),
+            Detections.Filter(lambda detections: detections.tracker_id != -1),
             TriggerLineZone(line_zone),
             Recall("source_frame", prepend=True),
             TraceAnnotator(thickness=4),

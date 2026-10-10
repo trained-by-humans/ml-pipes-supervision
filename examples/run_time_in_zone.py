@@ -58,6 +58,7 @@ def build_frame_pipeline(
             Select(0),
             Detections.FromInference(),
             ByteTrack(),
+            Detections.Filter(lambda detections: detections.tracker_id != -1),
             TriggerZone(zone),
             TrackingTimer(fps, field="time_in_zone"),
             Recall("source_frame", prepend=True),

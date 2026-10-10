@@ -68,6 +68,7 @@ def build_frame_pipeline(
             Detections.FromInference(),
             Recall("source_frame"),
             tracker,
+            Detections.Filter(lambda detections: detections.tracker_id != -1),
             Recall("source_frame", prepend=True),
             TraceAnnotator(),
             BoxAnnotator(),
