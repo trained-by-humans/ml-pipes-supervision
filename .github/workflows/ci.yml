@@ -40,7 +40,7 @@ jobs:
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   test:
-    name: Test Python ${{ matrix.python-version }} / ${{ matrix.supervision-profile }} Supervision ${{ matrix.supervision-version }}
+    name: "Test: Python ${{ matrix.python-version }} | Supervision ${{ matrix.supervision-version }} (${{ matrix.supervision-profile == 'lowest' && 'min' || matrix.supervision-profile == 'highest' && 'latest' || 'min/latest' }})"
     needs: dependency-matrix
     runs-on: ubuntu-latest
     strategy:
