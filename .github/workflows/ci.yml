@@ -40,7 +40,7 @@ jobs:
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   test:
-    name: "Test: Python ${{ matrix.python-version }} | Supervision ${{ matrix.supervision-version }} (${{ matrix.supervision-profile == 'lowest' && 'min' || matrix.supervision-profile == 'highest' && 'latest' || 'min/latest' }})"
+    name: "Compat: Python ${{ matrix.python-version }} | Supervision ${{ matrix.supervision-version }} (${{ matrix.supervision-profile == 'lowest' && 'min' || matrix.supervision-profile == 'highest' && 'latest' || 'min/latest' }})"
     needs: dependency-matrix
     runs-on: ubuntu-latest
     strategy:
@@ -104,7 +104,7 @@ jobs:
 
   compatibility-summary:
     # Keep this check name stable for GitHub's required status checks.
-    name: Upstream compatibility
+    name: "Compat: Gate"
     needs: [dependency-matrix, test]
     if: ${{ always() }}
     runs-on: ubuntu-latest

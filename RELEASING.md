@@ -26,7 +26,7 @@ CI must pass on Python 3.10 through 3.13. It runs package tests, builds both
 the wheel and source distribution, runs `twine check`, and installs the built
 wheel in a clean environment for an import and dependency check.
 
-The stable `Upstream compatibility` check aggregates matrix resolution and
+The stable `Compat: Gate` check aggregates matrix resolution and
 every compatibility matrix test. It succeeds only when those jobs succeed;
 failed, cancelled, or skipped jobs block it. Configure GitHub PR rules to
 require this check rather than the versioned matrix job names, and require
