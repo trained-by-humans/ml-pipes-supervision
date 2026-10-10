@@ -101,3 +101,25 @@ jobs:
           artifact-venv/bin/python -m pip install "$wheel_path"
           artifact-venv/bin/python -m pip check
           artifact-venv/bin/python -c 'import ml_pipes.supervision'
+
+  compatibility-summary:
+    # Keep this check name stable for GitHub's required status checks.
+    name: Upstream compatibility
+    needs: [dependency-matrix, test]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all compatibility jobs succeeded
+        shell: bash
+        env:
+          MATRIX_RESULT: ${{ needs.dependency-matrix.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+        run: |
+          printf 'Matrix resolution: %s\nCompatibility tests: %s\n' \
+            "$MATRIX_RESULT" "$TEST_RESULT"
+          for result in "$MATRIX_RESULT" "$TEST_RESULT"; do
+            if [[ "$result" != "success" ]]; then
+              echo "::error::All compatibility jobs must succeed; failed, cancelled, or skipped jobs are not accepted."
+              exit 1
+            fi
+          done
