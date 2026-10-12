@@ -12,9 +12,9 @@ This page catalogs the Supervision compatibility surface in
 see [`coverage.md`](./coverage.md).
 
 For framework-wide operator concepts, see
-[`ml-pipes operators`](https://github.com/trained-by-humans/ml-pipes/blob/main/docs/OPERATORS.md).
+[`ml-pipes operators`](https://github.com/trained-by-humans/ml-pipes/blob/main/docs/operators.md).
 For the cross-package catalog, see
-[`ml-pipes packages`](https://github.com/trained-by-humans/ml-pipes/blob/main/docs/PACKAGES.md).
+[`ml-pipes packages`](https://github.com/trained-by-humans/ml-pipes/blob/main/docs/packages.md).
 
 ## Public Modules
 
