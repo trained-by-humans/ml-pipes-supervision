@@ -55,7 +55,7 @@ extra:
         icon_hover: assets/site-navigation/ultralytics.svg#icon-hover
     catalog:
       title: All Packages →
-      url: https://ml-pipes.com/PACKAGES/
+      url: https://ml-pipes.com/packages/
 
 nav:
   - Home: index.md

@@ -49,6 +49,23 @@ Supervision compatibility wrapper.
 
 ## Documentation
 
+Use lowercase filenames and directory names for documentation guides in
+`docs/` and package-local documentation directories. Keep existing underscores
+and conventional filenames such as `README.md`, `AGENTS.md`, and `SKILL.md`.
+Visible page titles and navigation labels retain their normal capitalization.
+Update Markdown links, package documentation URLs, and cross-site links when
+renaming a guide; URLs follow source filename casing.
+
+The `Pages` workflow tests the naming checks and builds the site on pull
+requests and `main`, but deploys only from `main`. It checks filenames before
+building and generated URLs afterward. To run these checks locally:
+
+```bash
+python .github/scripts/check_docs_paths.py
+python -m mkdocs build --strict --site-dir _site
+python .github/scripts/check_docs_paths.py --site-dir _site
+```
+
 Preview the documentation site locally from the package root:
 
 ```bash
