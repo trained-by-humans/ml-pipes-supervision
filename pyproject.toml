@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ml-pipes-supervision"
-version = "0.1.2rc2"
+version = "0.1.3"
 description = "Compose computer-vision pipelines with ml-pipes, using Supervision operators for annotation, tracking, detection processing, and zone counting."
 readme = "README.md"
 license = "Apache-2.0"
