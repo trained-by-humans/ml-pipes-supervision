@@ -42,48 +42,27 @@ compatibility matrix.
 
 ## Install
 
-Install from PyPI in a [Python >=3.10](https://www.python.org/) environment:
+Requires Python 3.10 or newer.
 
 ```bash
 python -m pip install ml-pipes-supervision
 ```
 
-This also installs the required `ml-pipes` packages, including
-`ml-pipes-core` and `ml-pipes-vision`, plus the Supervision and tracker runtime
-dependencies.
-
-Supervision 0.30 no longer installs OpenCV, but our `trackers` dependency
-currently installs `opencv-python`. Avoid adding a second OpenCV wheel family;
-see the [upstream backend guide](https://github.com/roboflow/supervision/blob/0.30.9/docs/how_to/opencv_migration.md).
-`ImageWindow` uses Tkinter and Pillow, requiring Tkinter and a desktop display.
-
-To use `RoboflowInference` or run the inference-based examples, install the
-optional Inference integration:
+For `RoboflowInference`, including the Quickstart below, install the optional
+Inference integration:
 
 ```bash
 python -m pip install "ml-pipes-supervision[inference]"
 ```
 
-On Python 3.13, this extra requires Supervision >=0.30.6. The core package
-continues to support Supervision >=0.30.0.
+> [!NOTE]
+> On Python 3.13, the `inference` extra requires Supervision >=0.30.6.
+> Without this extra, the package supports Supervision >=0.30.0.
 
-The public operators are available from `ml_pipes.supervision`. Roboflow
-Inference and external tracker boundaries are available from
-`ml_pipes.supervision.inference` and `ml_pipes.supervision.trackers`.
-
-To use the integration from another project's `pyproject.toml`, add the PyPI
-package:
-
-```toml
-dependencies = [
-    "ml-pipes-supervision[inference]",
-]
-```
-
-## Development tests
-
-See [the testing guide](tests/README.md) for setup, suite organization, and local
-commands, including the CI-helper tests.
+> [!WARNING]
+> The `trackers` dependency currently installs `opencv-python`. Avoid installing
+> a second OpenCV wheel family, such as `opencv-python-headless`, in the same
+> environment. See the [upstream backend guide](https://github.com/roboflow/supervision/blob/0.30.9/docs/how_to/opencv_migration.md).
 
 ## Quickstart
 
@@ -118,6 +97,16 @@ For model integrations that produce an `ml_pipes.tensor.TensorRegistry`, use
 `Detections.FromTensorRegistry()` before Supervision annotators, trackers,
 zones, or sinks. This is the explicit boundary from tensor post-processing to
 Supervision data.
+
+## Documentation
+
+Want to learn how to use Supervision with `ml-pipes`? Explore our
+[how-to guides](https://supervision.ml-pipes.com/tutorials/detect_and_annotate/)
+and [end-to-end examples](./examples/)!
+
+The GitHub Pages tutorials preserve the corresponding Supervision guides and
+add their `ml-pipes` counterparts, so you can compare both approaches side by
+side.
 
 ## Why Supervision with ml-pipes?
 
@@ -159,13 +148,3 @@ The inspection report shows every boundary in that flow.
 | [`run_blur_faces.py`](./examples/run_blur_faces.py) | [`Blurring Faces`](https://github.com/roboflow/supervision/blob/develop/docs/notebooks/blurring_faces.ipynb) | `Detecting Faces`, `Blurring the Face` | Detects faces in MediaPipe's sample image locally, then blurs them. |
 
 </details>
-
-## Tutorials
-
-Want to learn how to use Supervision with `ml-pipes`? Explore our
-[how-to guides](https://trained-by-humans.github.io/ml-pipes-supervision/tutorials/detect_and_annotate/)
-and [end-to-end examples](./examples/)!
-
-The GitHub Pages tutorials preserve the corresponding Supervision guides and
-add their `ml-pipes` counterparts, so you can compare both approaches side by
-side.
