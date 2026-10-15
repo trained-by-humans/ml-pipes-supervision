@@ -1,3 +1,10 @@
+/* Enlarge the image while preserving the theme's 14px icon layout slot. */
+.header-btn--repo .header-btn__icon--repo {
+  height: 18px;
+  margin: -2px;
+  width: 18px;
+}
+
 /* Keep filter results visible beside their unfiltered source image. */
 .filter-comparison {
   display: grid;
