@@ -5,6 +5,7 @@ detections.data["response"]. People are selected by default; change class IDs
 and the prompt for other subjects and tasks.
 
 Run from the repository root (see README_detect_and_describe.md for setup):
+    python examples/run_detect_and_describe.py
     python examples/run_detect_and_describe.py --input path/to/photo.jpg
     python examples/run_detect_and_describe.py --input photo.jpg --prompt "Describe the clothing colors."
 """
@@ -20,6 +21,12 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 import supervision as sv
+from supervision.assets import ImageAssets, download_assets
+
+if __package__:
+    from .common import ASSETS_DIR
+else:
+    from common import ASSETS_DIR
 
 from ml_pipes.core import Pipeline
 from ml_pipes.operator import Operator
@@ -36,6 +43,7 @@ from ml_pipes.supervision.bedrock import Qwen3VL
 from ml_pipes.supervision.inference import RoboflowInference
 from ml_pipes.vision import Decode, ImagePayload, LoadFile, Resize
 
+DEFAULT_IMAGE_ASSET = ImageAssets.PEOPLE_WALKING
 DEFAULT_DETECTION_MODEL_ID = "rfdetr-small"
 # Pretrained RF-DETR detection aliases use COCO category ID 1 for person.
 DEFAULT_CLASS_IDS = (1,)
@@ -210,7 +218,10 @@ def build_pipeline(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, required=True, help="Source image path.")
+    parser.add_argument(
+        "--input", type=Path, default=None,
+        help="Source image path. Defaults to Supervision's PEOPLE_WALKING sample (downloaded if missing).",
+    )
     parser.add_argument("--output", type=Path, help="Optional JSON result path.")
     parser.add_argument("--output-image", type=Path, help="Optional annotated image path.")
     parser.add_argument("--detection-model-id", default=DEFAULT_DETECTION_MODEL_ID)
@@ -234,6 +245,7 @@ def main() -> int:
         help="Bedrock region (default: AWS region environment variable, or us-east-1).",
     )
     args = parser.parse_args()
+    input_path = args.input or Path(download_assets(DEFAULT_IMAGE_ASSET, directory=ASSETS_DIR))
 
     pipeline = build_pipeline(
         detection_model_id=args.detection_model_id,
@@ -245,7 +257,7 @@ def main() -> int:
         region_name=args.region,
     )
     pipeline.validate()
-    annotated_image, detections = pipeline(args.input)
+    annotated_image, detections = pipeline(input_path)
     results = [
         {
             "detection_index": index,

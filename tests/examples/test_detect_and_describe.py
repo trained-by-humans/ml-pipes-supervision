@@ -82,7 +82,7 @@ def test_only_filtered_person_crops_reach_qwen_and_results_stay_aligned(
 
     annotated, detections = pipeline(path)
 
-    factory.assert_called_once_with(model_id="rfdetr-small")
+    factory.assert_called_once_with(model_id=example.DEFAULT_DETECTION_MODEL_ID)
     assert detector.infer.call_args.kwargs == {"confidence": 0.5}
     np.testing.assert_array_equal(detector.infer.call_args.args[0], source)
     assert detections.class_id.tolist() == [1, 1]
@@ -430,6 +430,28 @@ def test_fully_outside_crop_boxes_skip_bedrock_and_annotations(
     plot_image.assert_called_once()
 
 
+def test_cli_defaults_to_people_walking_without_input(
+    example_models, source_image, tmp_path, monkeypatch, capsys, plot_image,
+):
+    example, detector, _, client, _ = example_models
+    detector.infer.return_value = response([prediction()])
+    download = MagicMock(return_value=str(source_image[0]))
+    monkeypatch.setattr(example, "download_assets", download)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("sys.argv", ["run_detect_and_describe.py"])
+
+    assert example.main() == 0
+
+    download.assert_called_once_with(sv.assets.ImageAssets.PEOPLE_WALKING, directory=example.ASSETS_DIR)
+    assert example.ASSETS_DIR.is_absolute()
+    results = json.loads(capsys.readouterr().out)
+    assert len(results) == 1
+    assert results[0]["response"] == "walking"
+    np.testing.assert_array_equal(detector.infer.call_args.args[0], source_image[1])
+    client.converse.assert_called_once()
+    plot_image.assert_called_once()
+
+
 @pytest.mark.parametrize("task_prompt, answer, class_id", [
     (None, "walking\nOne foot is raised.", 1),
     ("Describe the fashion style.", "casual\nBlue jeans.", 1),
@@ -442,6 +464,8 @@ def test_cli_prints_and_saves_boxes_with_task_responses(
     task_prompt, answer, class_id,
 ):
     example, detector, _, client, constructor = example_models
+    download = MagicMock()
+    monkeypatch.setattr(example, "download_assets", download)
     detector.infer.return_value = response([prediction(class_id=class_id)])
     client.converse.side_effect = [{
         "output": {"message": {"content": [{"text": answer}]}},
@@ -460,6 +484,7 @@ def test_cli_prints_and_saves_boxes_with_task_responses(
 
     assert example.main() == 0
 
+    download.assert_not_called()
     constructor.assert_called_once_with(
         prompt=example.build_prompt(task_prompt or example.DEFAULT_PROMPT),
         model_id="qwen.qwen3-vl-235b-a22b", region_name="us-west-2",

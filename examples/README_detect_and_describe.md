@@ -22,8 +22,13 @@ python -m pip install -e '.[inference,bedrock]'
 export AWS_BEARER_TOKEN_BEDROCK="<your-bedrock-api-key>"
 export AWS_DEFAULT_REGION="us-east-1"
 
+python examples/run_detect_and_describe.py
 python examples/run_detect_and_describe.py --input path/to/people.jpg --output-image annotated.jpg --output results.json
 ```
+
+Without `--input`, the image example uses Supervision's people-walking image in
+`examples/.example_assets`, downloading it if missing. Pass `--input` to use
+your own image.
 
 Standard AWS SDK credentials/profiles also work. Your key or IAM credentials
 must permit model invocation, and the selected region/account must support the
