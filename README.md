@@ -104,6 +104,10 @@ Want to learn how to use Supervision with `ml-pipes`? Explore our
 [how-to guides](https://supervision.ml-pipes.com/tutorials/detect_and_annotate/)
 and [end-to-end examples](./examples/)!
 
+For prompt-driven analysis of detected objects, see the
+[detect-and-describe example](./examples/README_detect_and_describe.md): local
+detection followed by Qwen3-VL on Bedrock, with a task prompt for each crop.
+
 The GitHub Pages tutorials preserve the corresponding Supervision guides and
 add their `ml-pipes` counterparts, so you can compare both approaches side by
 side.
