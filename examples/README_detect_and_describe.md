@@ -101,8 +101,62 @@ for exact detection crops. This still does not provide full-scene context.
 Use `--class-ids 1` to select classes (person is ID 1 for this RF-DETR model),
 `--confidence 0.5` to change the detector threshold, and `--detection-model-id`
 or `--qwen-model-id` to override models. Class mappings may differ for other
-detectors. Tracking, video, full-scene reasoning, and structured-output
-validation are intentionally outside this simple example.
+detectors. Full-scene reasoning and structured-output validation are outside
+these simple examples.
+
+## Video with tracking
+
+Use `run_track_and_describe.py` with the same prompt, model, region, class,
+confidence, and padding options:
+
+```bash
+python examples/run_track_and_describe.py
+python examples/run_track_and_describe.py --input video.mp4 --prompt "Describe the outfit's fashion style." --output-video annotated.mp4 --output tracks.json
+```
+
+By default it uses Supervision's people-walking video in
+`examples/.example_assets`, downloading it if missing. Use `--input` to select
+another video.
+
+RF-DETR runs on every frame, then ByteTrack associates the filtered detections.
+Pending tracker IDs (`-1`) are excluded. For each confirmed ID without a cached
+response, the pipeline pads, clips, crops, resizes, and sends that crop to Qwen.
+`TrackAttributes({"response": ""})` stores and restores detection data by tracker
+ID without filtering. An inline `Detections.Filter` selects missing responses
+and deduplicates IDs. The same stateful instance runs before filtering, after
+attaching new answers, and when restoring all current tracks for annotation.
+Configure other data-field defaults to reuse it for attributes besides text;
+defaults and `None` are treated as missing and never overwrite cached values.
+Only the successfully described subset updates the cache. Cached responses are
+then attached to **all current confirmed tracks**, so already-described tracks
+remain visible without more Bedrock requests. Each label shows `#ID` followed
+by the first response line. Unusable crops remain pending and can be described
+when a valid crop is available later.
+
+The video window is always displayed; press `q` or Escape, or close it, to stop.
+`--output-video` optionally saves the processed frames at the source frame rate
+(without audio). `--output` optionally saves one JSON entry per described track,
+containing `tracker_id` and the full `response`; the same JSON is printed.
+
+When used from Python, build `build_frame_pipeline(prompt="...", frame_rate=...)`
+**once** and call it for consecutive BGR frames. It returns
+`(annotated_frame, detections)` with answers in `detections.data["response"]`.
+Build a fresh pipeline for each video; tracker state and the response cache
+belong to that pipeline, not to a global store.
+
+This is intentionally a simple, synchronous demo:
+
+- New tracks wait for confirmation (two consecutive detections) before analysis.
+- `unknown` is cached as an answer, avoiding repeated charges for unclear crops.
+- Responses are first-observation snapshots; changing activities or clothing
+  are not re-evaluated automatically.
+- The cache is by **track ID, not identity**. An ID switch can misapply a label;
+  the same person receiving a new ID can trigger another request.
+- Responses remain in memory for the video's lifetime, including temporarily
+  lost tracks. There is no cross-video identity matching or persistent cache.
+- Calls are sequential. A new track can pause processing while Bedrock responds;
+  this is not a real-time/asynchronous pipeline. API failures stop processing
+  rather than being cached as descriptions.
 
 This replaces `run_fashion_style.py`: the script is now
 `run_detect_and_describe.py`, and the former `fashion_style` result field is

@@ -107,6 +107,8 @@ and [end-to-end examples](./examples/)!
 For prompt-driven analysis of detected objects, see the
 [detect-and-describe example](./examples/README_detect_and_describe.md): local
 detection followed by Qwen3-VL on Bedrock, with a task prompt for each crop.
+The [tracked-video variant](./examples/run_track_and_describe.py) describes each
+confirmed track once and reuses its cached response on subsequent frames.
 
 The GitHub Pages tutorials preserve the corresponding Supervision guides and
 add their `ml-pipes` counterparts, so you can compare both approaches side by
