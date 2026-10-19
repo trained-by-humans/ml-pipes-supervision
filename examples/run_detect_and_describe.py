@@ -2,11 +2,12 @@
 
 The pipeline returns (annotated_image, detections), with full answers in
 detections.data["response"]. People are selected by default; change class IDs
-and the prompt for other subjects and tasks.
+and the prompt for other subjects and tasks. Qwen runs locally with Transformers.
 
-Run from the repository root (see README_detect_and_describe.md for setup):
+Run from the repository root (see docs/recipes/detect_and_describe.md for setup):
     python examples/run_detect_and_describe.py
     python examples/run_detect_and_describe.py --input path/to/photo.jpg
+    python examples/run_detect_and_describe.py --device cpu
     python examples/run_detect_and_describe.py --input photo.jpg --prompt "Describe the clothing colors."
 """
 from __future__ import annotations
@@ -14,7 +15,6 @@ from __future__ import annotations
 import argparse
 from dataclasses import replace
 import json
-import os
 from pathlib import Path
 
 import cv2
@@ -25,8 +25,12 @@ from supervision.assets import ImageAssets, download_assets
 
 if __package__:
     from .common import ASSETS_DIR
+    from .qwen_local import DEFAULT_MODEL_ID as DEFAULT_QWEN_MODEL_ID
+    from .qwen_local import LocalQwen3VL, require_local_qwen
 else:
     from common import ASSETS_DIR
+    from qwen_local import DEFAULT_MODEL_ID as DEFAULT_QWEN_MODEL_ID
+    from qwen_local import LocalQwen3VL, require_local_qwen
 
 from ml_pipes.core import Pipeline
 from ml_pipes.operator import Operator
@@ -38,13 +42,12 @@ from ml_pipes.supervision import (
     LabelAnnotator,
     PlotImage,
 )
-from ml_pipes.supervision.bedrock import DEFAULT_MODEL_ID as DEFAULT_QWEN_MODEL_ID
-from ml_pipes.supervision.bedrock import Qwen3VL
 from ml_pipes.supervision.inference import RoboflowInference
-from ml_pipes.vision import Decode, ImagePayload, LoadFile, Resize
+from ml_pipes.vision import ConvertColorSpace, Decode, ImagePayload, LoadFile, Resize, ResizeTransform
 
 DEFAULT_IMAGE_ASSET = ImageAssets.PEOPLE_WALKING
 DEFAULT_DETECTION_MODEL_ID = "rfdetr-small"
+DEFAULT_CROP_SIZE = 1024
 # Pretrained RF-DETR detection aliases use COCO category ID 1 for person.
 DEFAULT_CLASS_IDS = (1,)
 DEFAULT_PROMPT = "Describe the visible subject's appearance and activity."
@@ -141,14 +144,33 @@ class CropDetections:
 
 
 @Operator
+class LimitCropSize:
+    """Downscale oversized crops with ml-pipes Resize; never pad or upscale."""
+
+    def __init__(self, max_size: int = DEFAULT_CROP_SIZE) -> None:
+        if not isinstance(max_size, int) or isinstance(max_size, bool) or max_size < 1:
+            raise ValueError("max_size must be a positive integer.")
+        self.max_size = max_size
+
+    def __call__(self, image: ImagePayload) -> tuple[ImagePayload, ResizeTransform]:
+        if image.layout != "HWC" or image.array.ndim != 3 or min(image.array.shape[:2]) < 1:
+            raise ValueError("LimitCropSize expects a non-empty HWC image.")
+        height, width = image.spatial_shape
+        if max(height, width) <= self.max_size:
+            return image, ResizeTransform(
+                scale=(1.0, 1.0), pad=(0.0, 0.0),
+                original_shape=(height, width), resized_shape=(height, width),
+            )
+        ratio = self.max_size / max(height, width)
+        target = (max(1, round(height * ratio)), max(1, round(width * ratio)))
+        return Resize(target_size=target, mode="resize", interpolation="area")(image)
+
+
+@Operator
 class AttachResponses:
     """Attach aligned full responses for use by the label formatter."""
 
-    def __call__(
-        self,
-        detections: sv.Detections,
-        responses: list[str],
-    ) -> sv.Detections:
+    def __call__(self, detections: sv.Detections, responses: list[str]) -> sv.Detections:
         if len(detections) != len(responses):
             raise ValueError("Each detection must have exactly one model response.")
         return replace(
@@ -165,43 +187,49 @@ def build_pipeline(
     padding: float = 0.05,
     prompt: str = DEFAULT_PROMPT,
     qwen_model_id: str = DEFAULT_QWEN_MODEL_ID,
-    region_name: str | None = None,
+    device: str = "cpu",
+    max_tokens: int = 256,
+    crop_size: int = DEFAULT_CROP_SIZE,
+    api_key: str | None = None,
 ) -> Pipeline[str | Path, tuple[npt.NDArray[np.uint8], sv.Detections]]:
     """Detect, answer a task per crop, annotate first-line labels, and display."""
     if not class_ids:
         raise ValueError("At least one class ID is required.")
     if not 0 <= confidence <= 1:
         raise ValueError("confidence must be between 0 and 1.")
+    if not np.isfinite(padding) or padding < 0:
+        raise ValueError("padding must be finite and non-negative.")
+    if not isinstance(crop_size, int) or isinstance(crop_size, bool) or crop_size < 1:
+        raise ValueError("crop_size must be a positive integer.")
+    if not isinstance(max_tokens, int) or isinstance(max_tokens, bool) or max_tokens < 1:
+        raise ValueError("max_tokens must be a positive integer.")
     prepared_prompt = build_prompt(prompt)
-    pad_boxes = PadBoxes(padding=padding)
     return Pipeline(
         [
             LoadFile(),
             Decode(),
             ImageToArray(),
             Store("source_image"),
-            RoboflowInference(model_id=detection_model_id, confidence=confidence),
+            RoboflowInference(model_id=detection_model_id, api_key=api_key, confidence=confidence),
             Select(0),
             Detections.FromInference(),
             Detections.Filter(lambda detections: np.isin(detections.class_id, class_ids)),
             Detections.Filter(lambda detections: detections.confidence >= confidence),
             Detections.NMS(threshold=0.5),
-            pad_boxes,
+            PadBoxes(padding=padding),
             Recall("source_image", prepend=True),
             ClipBoxes(),
             CropDetections(),
             Store("detections", source=0),
             Pick(1),
             Scatter(max_concurrency=1),
-            Resize(
-                target_size=(1024, 1024),
-                mode="letterbox",
-                allow_scale_up=False,
-                interpolation="area",
-            ),
+            LimitCropSize(max_size=crop_size),
             Pick(0),  # Discard the crop resize transform; source boxes stay unchanged.
-            ImageToArray(),
-            Qwen3VL(prompt=prepared_prompt, model_id=qwen_model_id, region_name=region_name),
+            ConvertColorSpace(output_color_space="RGB"),
+            LocalQwen3VL(
+                prompt=prepared_prompt, model_id=qwen_model_id,
+                device=device, max_tokens=max_tokens,
+            ),
             Gather(),
             Recall("detections", prepend=True),
             AttachResponses(),
@@ -234,17 +262,23 @@ def main() -> int:
         "--padding", type=float, default=0.05,
         help="Extra context per side, as a fraction of box width/height (default: 0.05).",
     )
-    parser.add_argument("--qwen-model-id", default=DEFAULT_QWEN_MODEL_ID)
+    parser.add_argument(
+        "--qwen-model-id", default=DEFAULT_QWEN_MODEL_ID,
+        help=f"Local model ID or path (default: {DEFAULT_QWEN_MODEL_ID}).",
+    )
+    parser.add_argument("--device", default="cpu", help="Local Qwen device: cpu (default), mps, cuda, or cuda:N.")
+    parser.add_argument("--max-tokens", type=int, default=256, help="Maximum generated answer tokens (default: 256).")
+    parser.add_argument(
+        "--crop-size", type=int, default=DEFAULT_CROP_SIZE,
+        help="Maximum crop edge (default: 1024); downscale only, without borders or upscaling.",
+    )
+    parser.add_argument("--api-key", help="Optional Roboflow key for detection; ROBOFLOW_API_KEY also works.")
     parser.add_argument(
         "--prompt", default=DEFAULT_PROMPT,
         help="Task to answer for each crop; answer-format instructions are appended.",
     )
-    parser.add_argument(
-        "--region",
-        default=os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "us-east-1",
-        help="Bedrock region (default: AWS region environment variable, or us-east-1).",
-    )
     args = parser.parse_args()
+    require_local_qwen()
     input_path = args.input or Path(download_assets(DEFAULT_IMAGE_ASSET, directory=ASSETS_DIR))
 
     pipeline = build_pipeline(
@@ -254,10 +288,16 @@ def main() -> int:
         padding=args.padding,
         prompt=args.prompt,
         qwen_model_id=args.qwen_model_id,
-        region_name=args.region,
+        device=args.device,
+        max_tokens=args.max_tokens,
+        crop_size=args.crop_size,
+        api_key=args.api_key,
     )
     pipeline.validate()
+    pipeline.describe()
+
     annotated_image, detections = pipeline(input_path)
+
     results = [
         {
             "detection_index": index,
@@ -275,6 +315,7 @@ def main() -> int:
     if args.output_image is not None:
         if not cv2.imwrite(str(args.output_image), annotated_image):
             raise OSError(f"Failed to save annotated image to {args.output_image}")
+
     return 0
 
 
