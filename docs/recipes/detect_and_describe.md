@@ -352,5 +352,4 @@ non-interactive Agg backend. This is not a like-for-like speed comparison with
 the previous capture: inspection snapshots and generated answer lengths affect
 the total.
 
-Download the [text trace](../assets/detect_and_describe/trace.txt) or
-[structured trace](../assets/detect_and_describe/trace.json) for this run.
+Download the [JSON trace](../assets/detect_and_describe/trace.json) for this run.
