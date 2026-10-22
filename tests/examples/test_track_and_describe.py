@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 import supervision as sv
 
-from ml_pipes.supervision import LabelAnnotator
+from ml_pipes.supervision import Detections, LabelAnnotator
 from ml_pipes.supervision import trackers as tracker_ops
 from ml_pipes.standard import Scatter
 from examples.qwen_local import INSTALL_COMMAND, LocalQwen3VL, require_local_qwen
@@ -101,13 +101,13 @@ def test_each_id_is_described_once_and_all_current_tracks_keep_their_labels(mode
     assert models.detector.infer.call_count == models.tracker.update.call_count == 5
     assert models.show.call_count == 5
     assert [d.tracker_id.tolist() for _, d in outputs] == [[7, 9], [9, 7], [9, 7, 11], [], [7, 11]]
-    assert outputs[0][1].data["response"].tolist() == [
+    assert list(outputs[0][1].data["response"]) == [
         "walking\nOne foot raised.", "standing\nBoth feet planted.",
     ]
-    assert outputs[1][1].data["response"].tolist() == [
+    assert list(outputs[1][1].data["response"]) == [
         "standing\nBoth feet planted.", "walking\nOne foot raised.",
     ]
-    assert outputs[4][1].data["response"].tolist() == [
+    assert list(outputs[4][1].data["response"]) == [
         "walking\nOne foot raised.", "unknown\nToo blurry to judge.",
     ]
     assert label_spy.call_args.kwargs["labels"] == ["#7 walking", "#11 unknown"]
@@ -162,7 +162,7 @@ def test_track_crops_keep_source_resolution_and_responses_are_cached(
     for detections in (first, repeated):
         np.testing.assert_array_equal(detections.xyxy, [box])
         assert detections.tracker_id.tolist() == [7]
-        assert detections.data["response"].tolist() == ["walking\nOne foot raised."]
+        assert list(detections.data["response"]) == ["walking\nOne foot raised."]
     np.testing.assert_array_equal(models.detector.infer.call_args.args[0], frame)
 
 
@@ -173,7 +173,7 @@ def test_no_describable_tracks_leaves_local_model_uninitialized(models, frame):
 
     _, detections = pipeline(frame)
 
-    assert detections.data["response"].tolist() == []
+    assert list(detections.data["response"]) == []
     assert qwen._model is qwen._processor is None
     models.generate.assert_not_called()
 
@@ -185,12 +185,12 @@ def test_invalid_crops_remain_pending_until_a_valid_crop_is_available(models, fr
     _, pending = pipeline(frame)
 
     assert pending.tracker_id.tolist() == [7]
-    assert pending.data["response"].tolist() == [""]
+    assert list(pending.data["response"]) == [""]
     models.generate.assert_not_called()
 
     _, described = pipeline(frame)
 
-    assert described.data["response"].tolist() == ["walking\nOne foot raised."]
+    assert list(described.data["response"]) == ["walking\nOne foot raised."]
     models.generate.assert_called_once()
 
 
@@ -207,7 +207,7 @@ def test_dropped_new_crop_does_not_shift_responses_onto_other_tracks(models, fra
 
     assert mixed.tracker_id.tolist() == [7, 9, 11]
     np.testing.assert_array_equal(mixed.xyxy, [[10, 20, 30, 60], [130, 10, 150, 30], [80, 20, 100, 60]])
-    assert mixed.data["response"].tolist() == [
+    assert list(mixed.data["response"]) == [
         "walking\nOne foot raised.", "", "standing\nBoth feet planted.",
     ]
     assert models.generate.call_count == 2
@@ -215,7 +215,7 @@ def test_dropped_new_crop_does_not_shift_responses_onto_other_tracks(models, fra
     _, retried = pipeline(frame)
 
     assert retried.tracker_id.tolist() == [9]
-    assert retried.data["response"].tolist() == ["unknown\nToo blurry to judge."]
+    assert list(retried.data["response"]) == ["unknown\nToo blurry to judge."]
     assert models.generate.call_count == 3
 
 
@@ -229,7 +229,7 @@ def test_errors_propagate_and_do_not_mark_a_track_as_described(models, frame):
 
     _, detections = pipeline(frame)
 
-    assert detections.data["response"].tolist() == ["walking"]
+    assert list(detections.data["response"]) == ["walking"]
     assert models.generate.call_count == 2
 
 
@@ -242,8 +242,8 @@ def test_unknown_is_cached_and_new_pipeline_has_an_independent_cache(models, fra
     _, repeated = pipeline(frame)
     _, fresh = models.example.build_frame_pipeline()(frame)
 
-    assert repeated.data["response"].tolist() == ["unknown\nNot visible."]
-    assert fresh.data["response"].tolist() == ["standing"]
+    assert list(repeated.data["response"]) == ["unknown\nNot visible."]
+    assert list(fresh.data["response"]) == ["standing"]
     assert models.generate.call_count == 2
 
 
@@ -256,7 +256,7 @@ def test_inline_filter_describes_duplicate_ids_only_once(models, frame):
 
     assert models.generate.call_count == 2
     assert detections.tracker_id.tolist() == [7, 7, 9]
-    assert detections.data["response"].tolist() == [
+    assert list(detections.data["response"]) == [
         "standing\nBoth feet planted.", "standing\nBoth feet planted.",
         "walking\nOne foot raised.",
     ]
@@ -277,9 +277,9 @@ def test_track_attributes_restore_multiple_fields_by_id_without_replacing_curren
     restored = attributes(current)
 
     assert restored.tracker_id.tolist() == [7, 9, 0]
-    assert restored.data["response"].tolist() == ["standing", "", "a longer response\nFull text."]
-    assert restored.data["score"].tolist() == [0.9, None, 0.0]
-    assert restored.data["visible"].tolist() == [True, None, False]
+    assert list(restored.data["response"]) == ["standing", "", "a longer response\nFull text."]
+    assert list(restored.data["score"]) == [0.9, None, 0.0]
+    assert list(restored.data["visible"]) == [True, None, False]
     np.testing.assert_array_equal(restored.xyxy, current.xyxy)
     np.testing.assert_array_equal(restored.confidence, current.confidence)
     np.testing.assert_array_equal(restored.class_id, current.class_id)
@@ -291,13 +291,13 @@ def test_track_attributes_restore_multiple_fields_by_id_without_replacing_curren
 def test_track_attributes_missing_values_do_not_overwrite_saved_values(models, missing):
     attributes = models.example.TrackAttributes({"response": ""})
     stale_frame = attributes(tracked([7]))
-    described = models.example.AttachResponses()(tracked([7]), ["unknown\nToo blurry."])
+    described = Detections.AttachDataField("response")(tracked([7]), ["unknown\nToo blurry."])
     attributes(described)
     stale_frame.data["response"][0] = missing
 
     restored = attributes(stale_frame)
 
-    assert restored.data["response"].tolist() == ["unknown\nToo blurry."]
+    assert list(restored.data["response"]) == ["unknown\nToo blurry."]
 
 
 def test_track_attributes_can_update_one_field_without_losing_another(models):
@@ -311,35 +311,35 @@ def test_track_attributes_can_update_one_field_without_losing_another(models):
 
     restored = attributes(tracked([7]))
 
-    assert restored.data["style"].tolist() == ["casual"]
-    assert restored.data["activity"].tolist() == ["standing"]
+    assert list(restored.data["style"]) == ["casual"]
+    assert list(restored.data["activity"]) == ["standing"]
 
 
 @pytest.mark.parametrize("ids", [None, [-1, -1]])
 def test_track_attributes_never_store_or_restore_unconfirmed_ids(models, ids):
     attributes = models.example.TrackAttributes({"response": ""})
-    described = models.example.AttachResponses()(tracked(ids), ["walking", "standing"])
+    described = Detections.AttachDataField("response")(tracked(ids), ["walking", "standing"])
 
     unchanged = attributes(described)
     restored = attributes(tracked(ids))
 
     assert len(unchanged) == 2
-    assert unchanged.data["response"].tolist() == ["walking", "standing"]
-    assert restored.data["response"].tolist() == ["", ""]
+    assert list(unchanged.data["response"]) == ["walking", "standing"]
+    assert list(restored.data["response"]) == ["", ""]
     assert attributes.attributes == {}
 
 
 def test_track_attributes_survive_empty_frames_and_have_instance_local_state(models):
     attributes = models.example.TrackAttributes({"response": ""})
-    attributes(models.example.AttachResponses()(tracked([7]), ["walking"]))
+    attributes(Detections.AttachDataField("response")(tracked([7]), ["walking"]))
 
     empty = attributes(tracked([]))
     restored = attributes(tracked([7]))
     separate = models.example.TrackAttributes({"response": ""})(tracked([7]))
 
     assert empty.data["response"].shape == (0,)
-    assert restored.data["response"].tolist() == ["walking"]
-    assert separate.data["response"].tolist() == [""]
+    assert list(restored.data["response"]) == ["walking"]
+    assert list(separate.data["response"]) == [""]
 
 
 def test_track_attributes_do_not_alias_mutable_input_or_output_values(models):
@@ -418,7 +418,7 @@ def test_real_bytetrack_flow_only_describes_after_confirmation(models, frame, mo
 
     assert len(confirmed) == 1
     np.testing.assert_array_equal(confirmed.tracker_id, repeated.tracker_id)
-    assert confirmed.data["response"].tolist() == repeated.data["response"].tolist()
+    assert list(confirmed.data["response"]) == list(repeated.data["response"])
     models.generate.assert_called_once()
 
 
@@ -537,8 +537,8 @@ def test_local_backend_converts_only_new_track_crops_and_reuses_cached_answers(m
     assert calls[0][0] is calls[1][0]
     assert calls[0][0].model_id == models.example.describe_image.DEFAULT_QWEN_MODEL_ID
     assert outputs[0][1].tracker_id.tolist() == [7]
-    assert outputs[1][1].data["response"].tolist() == [answers[0]]
-    assert outputs[2][1].data["response"].tolist() == [answers[1], answers[0]]
+    assert list(outputs[1][1].data["response"]) == [answers[0]]
+    assert list(outputs[2][1].data["response"]) == [answers[1], answers[0]]
     for _, crop in calls:
         assert crop.color_space == "RGB" and crop.layout == "HWC"
         assert crop.array.shape == (44, 22, 3)
@@ -567,7 +567,7 @@ def test_local_generation_failure_is_not_cached_and_track_can_retry(models, fram
     _, retried = pipeline(frame)
     _, repeated = pipeline(frame)
 
-    assert retried.data["response"].tolist() == repeated.data["response"].tolist() == ["casual\nBlue jeans."]
+    assert list(retried.data["response"]) == list(repeated.data["response"]) == ["casual\nBlue jeans."]
     models.qwen_factory.assert_called_once()
 
 
@@ -584,9 +584,9 @@ def test_partial_responses_are_shown_and_cached_while_new_tracks_continue(
 
     outputs = [pipeline(frame) for _ in range(3)]
 
-    assert outputs[0][1].data["response"].tolist() == [partial]
-    assert outputs[1][1].data["response"].tolist() == [partial]
-    assert outputs[2][1].data["response"].tolist() == [partial, "standing\nBoth feet planted."]
+    assert list(outputs[0][1].data["response"]) == [partial]
+    assert list(outputs[1][1].data["response"]) == [partial]
+    assert list(outputs[2][1].data["response"]) == [partial, "standing\nBoth feet planted."]
     assert label_spy.call_args.kwargs["labels"] == [f"#7 {partial.splitlines()[0]}", "#9 standing"]
     assert models.generate.call_count == 2
     assert models.show.call_count == 3

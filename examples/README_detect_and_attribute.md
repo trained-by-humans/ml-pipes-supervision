@@ -68,7 +68,7 @@ The example uses public `Detections.ScaleBoxes`, `Detections.ClipBoxes`, and
 invalid crop regions and uses the surviving padded, image-clipped boxes for
 annotation. Detection, class/confidence filters, NMS, scatter/gather,
 annotation, display, and optional JSON/image outputs follow the same structure.
-The stages mirror the describe pipeline; the prompt and response attachment differ:
+The stages mirror the describe pipeline; the prompt and label parsing differ:
 
 - The prompt includes the attribute and every candidate's name and description,
   with instructions to copy exactly one label name onto the first line and
@@ -78,10 +78,14 @@ The stages mirror the describe pipeline; the prompt and response attachment diff
   directly to `LocalQwen3VL`. Detection and annotation still receive BGR pixels.
   Crops retain their source resolution; the model processor handles image sizing,
   normalization, and patch alignment.
-- `AttachAttributeLabels` strips surrounding whitespace from the first line and
+- `ParseAttributeLabels` parses the ordered crop responses before attachment,
+  without accessing detections. It strips surrounding whitespace from the first line and
   accepts it only if it exactly matches a supplied label name. Unrecognized,
   malformed, or incomplete labels become `unknown`, even if `unknown` was not
-  supplied as a candidate. Full responses are preserved for inspection.
+  supplied as a candidate. It returns aligned `attribute`, `label`, and raw
+  `response` fields; `Detections.AttachData()` attaches them together without
+  changing detector classes or confidence scores. Full responses are preserved
+  for inspection.
 
 The annotated image is always displayed, with **only the selected label name**,
 such as `casual`; attribute names, descriptions, and scores are not annotated.
@@ -89,7 +93,8 @@ such as `casual`; attribute names, descriptions, and scores are not annotated.
 `build_pipeline(attribute="...", labels=(...))`. The pipeline
 returns `(annotated_image, detections)`. Attribute fields are stored in
 `detections.data["attribute"]`, `["label"]`, and `["response"]`. Original
-detector classes, confidence, and boxes are preserved.
+detector classes and confidence are preserved; boxes include the crop padding
+and image-boundary clipping described above.
 
 JSON is printed and optionally saved with `--output`. Each entry contains
 `detection_index`, source-image `xyxy`, detector `class_id`/`confidence`, and
@@ -98,8 +103,20 @@ There is no CLIP `similarity` score or synthesized Qwen confidence score.
 `--output-image` saves the annotated image. If no detections survive
 filtering/cropping, Qwen is not loaded or called.
 
-The `CLIPClassify` operator and its `AttachClassifications` adapter remain in the
-example for separate experiments. Neither is instantiated by `build_pipeline()`.
+The `CLIPClassify` operator remains in the example for separate experiments;
+it is not instantiated by `build_pipeline()`. Its results can be attached using
+the same public operator, for example:
+
+```python
+from ml_pipes.supervision import Detections
+
+# classifications contains one CLIP result for each detection.
+classified = Detections.AttachData()(detections, {
+    "label": [result.label for result in classifications],
+    "similarity": [result.similarity for result in classifications],
+})
+```
+
 The CLI uses only Qwen and no longer exposes `--clip-model-id`. CLIP is not a
 dependency or extra of this package. Install its runtime explicitly, using the
 same Inference release as the detector integration:

@@ -16,7 +16,7 @@ Run from the repository root (see README_detect_and_attribute.md for setup):
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from importlib.metadata import version
 import json
 from pathlib import Path
@@ -210,50 +210,25 @@ class CLIPClassify:
 
 
 @Operator
-class AttachClassifications:
-    """Attach aligned attribute labels without changing detector classes or scores."""
-
-    def __init__(self, attribute: str) -> None:
-        self.attribute, _ = parse_named_text(attribute, "attribute")
-
-    def __call__(
-        self,
-        detections: sv.Detections,
-        classifications: list[Classification],
-    ) -> sv.Detections:
-        if len(detections) != len(classifications):
-            raise ValueError("Each detection must have exactly one classification.")
-        return replace(detections, data={
-            **detections.data,
-            "attribute": np.full(len(detections), self.attribute),
-            "label": np.asarray([result.label for result in classifications], dtype=str),
-            "similarity": np.asarray([result.similarity for result in classifications], dtype=float),
-        })
-
-
-@Operator
-class AttachAttributeLabels:
-    """Validate Qwen's first-line labels while retaining full (even partial) text."""
+class ParseAttributeLabels:
+    """Parse crop responses into aligned data fields without accessing detections."""
 
     def __init__(self, attribute: str, labels: tuple[str, ...]) -> None:
         attribute, labels = prepare_candidates(attribute, labels)
         self.attribute, _ = parse_named_text(attribute, "attribute")
         self.labels = {parse_named_text(label, "candidate label")[0] for label in labels}
 
-    def __call__(self, detections: sv.Detections, responses: list[str]) -> sv.Detections:
-        if len(detections) != len(responses):
-            raise ValueError("Each detection must have exactly one model response.")
+    def __call__(self, responses: list[str]) -> dict[str, list[str]]:
         labels = []
         for response in responses:
             first_line = response.strip().splitlines()[0] if response.strip() else ""
             label = first_line.strip()
             labels.append(label if label in self.labels else "unknown")
-        return replace(detections, data={
-            **detections.data,
-            "attribute": np.full(len(detections), self.attribute),
-            "label": np.asarray(labels, dtype=str),
-            "response": np.asarray(responses, dtype=str),
-        })
+        return {
+            "attribute": [self.attribute] * len(responses),
+            "label": labels,
+            "response": responses,
+        }
 
 
 def build_pipeline(
@@ -305,8 +280,9 @@ def build_pipeline(
                 device=device, max_tokens=max_tokens,
             ),
             Gather(),
+            ParseAttributeLabels(attribute=attribute, labels=labels),
             Recall("detections", prepend=True),
-            AttachAttributeLabels(attribute=attribute, labels=labels),
+            Detections.AttachData(),
             Recall("source_image", prepend=True),
             BoxAnnotator(),
             LabelAnnotator(

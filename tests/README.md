@@ -48,6 +48,7 @@ at both bounds, and adds Inference 1.7.4 only to the highest-version profile.
 | --- | --- |
 | `test_exports.py` | Public package imports and exports |
 | `test_core.py` | Detection/image adapters, filtering, stitching, smoothing |
+| `test_attach_data.py` | Single-/multi-field data alignment, nested-value preservation, atomic collision policy, non-mutation, and validated pipelines |
 | `test_annotators.py` | Annotator payload preservation and label callbacks |
 | `test_zones.py` | Zone delegation and our tracking-timer logic |
 | `test_views.py` | Display adapter, with only the GUI boundary replaced |

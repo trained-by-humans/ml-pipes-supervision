@@ -28,12 +28,10 @@ if __package__:
     from . import run_detect_and_describe as describe_image
     from .common import ASSETS_DIR
     from .qwen_local import LocalQwen3VL, require_local_qwen
-    from .run_detect_and_describe import AttachResponses
 else:
     import run_detect_and_describe as describe_image
     from common import ASSETS_DIR
     from qwen_local import LocalQwen3VL, require_local_qwen
-    from run_detect_and_describe import AttachResponses
 
 from ml_pipes.core import Pipeline
 from ml_pipes.operator import Operator
@@ -163,7 +161,7 @@ def build_frame_pipeline(
             ),
             Gather(),
             Recall("new_detections", prepend=True),
-            AttachResponses(),
+            Detections.AttachDataField("response", overwrite=True),  # Replace the pending-response placeholder.
             track_attributes,
             Recall("tracked_detections"),
             Pick(1),

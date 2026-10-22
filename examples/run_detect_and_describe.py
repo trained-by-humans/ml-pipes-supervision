@@ -14,7 +14,6 @@ Run from the repository root (see docs/recipes/detect_and_describe.md for setup)
 from __future__ import annotations
 
 import argparse
-from dataclasses import replace
 import json
 from pathlib import Path
 
@@ -34,7 +33,6 @@ else:
     from qwen_local import LocalQwen3VL, require_local_qwen
 
 from ml_pipes.core import Pipeline
-from ml_pipes.operator import Operator
 from ml_pipes.standard import Gather, Pick, Recall, Scatter, Select, Store
 from ml_pipes.supervision import (
     BoxAnnotator,
@@ -66,19 +64,6 @@ def build_prompt(prompt: str) -> str:
     if not prompt.strip():
         raise ValueError("A non-empty task prompt is required.")
     return f"Task:\n{prompt.strip()}\n\n{RESPONSE_INSTRUCTIONS}"
-
-
-@Operator
-class AttachResponses:
-    """Attach aligned full responses for use by the label formatter."""
-
-    def __call__(self, detections: sv.Detections, responses: list[str]) -> sv.Detections:
-        if len(detections) != len(responses):
-            raise ValueError("Each detection must have exactly one model response.")
-        return replace(
-            detections,
-            data={**detections.data, "response": np.asarray(responses, dtype=str)},
-        )
 
 
 def build_pipeline(
@@ -129,7 +114,7 @@ def build_pipeline(
             ),
             Gather(),
             Recall("detections", prepend=True),
-            AttachResponses(),
+            Detections.AttachDataField("response"),
             Recall("source_image", prepend=True),
             BoxAnnotator(),
             LabelAnnotator(

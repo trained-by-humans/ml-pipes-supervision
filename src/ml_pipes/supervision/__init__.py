@@ -36,6 +36,8 @@ from .annotators import (
     TriangleAnnotator,
 )
 from .core import (
+    DetectionsAttachData,
+    DetectionsAttachDataField,
     DetectionsFromInference,
     DetectionsFromTensorRegistry,
     DetectionsFromUltralytics,
@@ -74,6 +76,8 @@ class Detections:
     FromInference = DetectionsFromInference
     FromTensorRegistry = DetectionsFromTensorRegistry
     FromUltralytics = DetectionsFromUltralytics
+    AttachData = DetectionsAttachData
+    AttachDataField = DetectionsAttachDataField
     Filter = DetectionsFilter
     NMS = DetectionsNMS
     NMM = DetectionsNMM
