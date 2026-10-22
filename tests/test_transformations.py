@@ -1,6 +1,5 @@
 """Detection geometry, raster crop policies, and pipeline integration."""
 from copy import deepcopy
-from typing import Any
 from unittest.mock import create_autospec
 
 import numpy as np
@@ -58,8 +57,19 @@ def test_geometry_matches_source_and_preserves_other_fields(detections, dtype, o
     detections.xyxy = detections.xyxy.astype(dtype)
     original = deepcopy(detections)
 
+    try:
+        expected = getattr(sv, helper)(original.xyxy.copy(), **kwargs)
+    except TypeError as error:
+        # Older Supervision rejects unsigned padding; preserve that contract.
+        assert helper == "pad_boxes" and dtype is np.uint32
+        assert "Cannot cast ufunc" in str(error)
+        with pytest.raises(type(error)) as caught:
+            operator(detections)
+        assert str(caught.value) == str(error)
+        assert detections == original
+        return
+
     result = operator(detections)
-    expected = getattr(sv, helper)(original.xyxy, **kwargs)
 
     assert result is not detections
     np.testing.assert_array_equal(result.xyxy, expected)
@@ -320,10 +330,6 @@ def test_clip_crop_pipeline_validates_and_preserves_alignment(image, payload):
     (npt.NDArray[np.uint8], True),
     (ImagePayload, False),
     (ImagePayload, True),
-    pytest.param(np.ndarray, True, marks=pytest.mark.xfail(
-        raises=PipelineValidationError, strict=True,
-        reason="Generic bare ndarray strict validation: trained-by-humans/ml-pipes#88",
-    )),
 ])
 def test_clip_contract_preserves_image_type(image, detections, image_type, strict):
     input_type = tuple[image_type, sv.Detections]
@@ -332,9 +338,8 @@ def test_clip_contract_preserves_image_type(image, detections, image_type, stric
         pipeline_input_type=input_type, strict=strict,
     )
 
-    # Core publishes bare ndarray annotations as NDArray[Any].
-    published_image_type = npt.NDArray[Any] if image_type is np.ndarray else image_type
-    assert contract.output_type == tuple[published_image_type, sv.Detections]
+    # Core normalizes NumPy shapes and aliases; compare the published contracts.
+    assert contract.output_type == contract.input_type
     input_image = ImagePayload(image, color_space="RGB") if image_type is ImagePayload else image
     output_image, _ = pipeline((input_image, detections))
     assert output_image is input_image
@@ -344,10 +349,6 @@ def test_clip_contract_preserves_image_type(image, detections, image_type, stric
     (np.ndarray, False),
     (npt.NDArray[np.uint8], False),
     (npt.NDArray[np.uint8], True),
-    pytest.param(np.ndarray, True, marks=pytest.mark.xfail(
-        raises=PipelineValidationError, strict=True,
-        reason="Generic bare ndarray strict validation: trained-by-humans/ml-pipes#88",
-    )),
 ])
 def test_clip_composes_with_annotators_under_validation(image, image_type, strict):
     original = image.copy()
@@ -364,6 +365,22 @@ def test_clip_composes_with_annotators_under_validation(image, image_type, stric
     np.testing.assert_array_equal(image, original)
     np.testing.assert_array_equal(clipped.xyxy, [[0, 0, 5, 6]])
     np.testing.assert_array_equal(detections.xyxy, [[-2, -3, 5, 6]])
+
+
+@pytest.mark.parametrize("annotate", [False, True])
+def test_clip_strict_validation_rejects_bare_ndarray(annotate):
+    operators = [Detections.ClipBoxes()]
+    if annotate:
+        operators.extend([BoxAnnotator(), LabelAnnotator()])
+
+    # Bare arrays have no concrete dtype: trained-by-humans/ml-pipes#88.
+    with pytest.raises(
+        PipelineValidationError,
+        match=r"Strict mode violation.*DetectionsClipBoxes.*output type is unresolved",
+    ):
+        Pipeline(operators).validate(
+            pipeline_input_type=tuple[np.ndarray, sv.Detections], strict=True,
+        )
 
 
 @pytest.mark.parametrize("image_type", [ImagePayload, np.ndarray | ImagePayload])
@@ -383,7 +400,7 @@ def test_clip_contract_preserves_supported_image_union():
     image_type = npt.NDArray[np.uint8] | ImagePayload
     input_type = tuple[image_type, sv.Detections]
     contract = Pipeline([Detections.ClipBoxes()]).validate(pipeline_input_type=input_type)
-    assert contract.output_type == input_type
+    assert contract.output_type == contract.input_type
 
 
 def test_geometry_pipeline_validates(detections):
