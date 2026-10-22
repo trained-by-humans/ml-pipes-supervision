@@ -38,6 +38,66 @@ For the cross-package catalog, see
 | `Detections.Stitch()` | `(list[sv.Detections], list[TileRect])` -> `sv.Detections` | Moves tiled detections into source-image coordinates and merges them. |
 | `DetectionsSmoother(length=5)` | `sv.Detections` -> `sv.Detections` | Smooths tracked boxes over `length` frames; requires tracker IDs and does not support segmentation. See [smoothing and reset](tutorials/track_objects.md#smooth-tracked-detections). |
 
+## Detection Transformations
+
+These operators accept `sv.Detections`, not raw box arrays. Geometry operators
+return new detections without mutating their inputs: they change only `xyxy`,
+preserving masks, oriented boxes, keypoints, confidence, classes, tracking IDs,
+data, and metadata. Preserved fields may share storage with the input; this is
+not a deep-copy guarantee. For raw boxes, use a typed `Map` callback with the
+corresponding Supervision helper.
+
+| Operator | Input -> Output | Semantics |
+|---|---|---|
+| `Detections.PadBoxes(px, py=None)` | detections -> detections | `sv.pad_boxes`: pixels added on **each side**; omitted `py` equals `px`. No automatic clipping. |
+| `Detections.ScaleBoxes(factor_x, factor_y=None)` | detections -> detections | Scale width/height around each box's center. Omitted y equals x. Factors must be finite and positive; factors below 1 shrink. Independent factors extend Supervision's scalar API. This does not resize the image or scale coordinates about the origin. |
+| `Detections.MoveBoxes(offset)` | detections -> detections | `sv.move_boxes`: translate boxes by `(dx, dy)`. Other geometry is not translated. |
+| `Detections.ClipBoxes(*, rounding="none", invalid="keep")` | `(image, detections)` -> `(image, detections)` | Clip `xyxy` to image width/height; pass the image through unchanged. Optional rounding and invalid-row handling below. |
+| `Detections.Crop(*, copy=True)` | `(image, detections)` -> `(detections, list[ImagePayload])` | One image region per detection, in matching order. Supervision-style nearest rounding and bounds clamping; copies by default. No crop-local coordinate conversion. |
+| `Detections.Merge()` | `list[sv.Detections]` -> detections | Delegate to `sv.Detections.merge`: concatenate compatible prediction sets. Not the box-union operation called Detections Merge in Inference Workflows. |
+
+Clip and Crop accept non-empty three-channel HWC `uint8` images: bare arrays
+are BGR; `ImagePayload` inputs may be RGB or BGR. Crops preserve the input color
+space and use HWC layout. `Crop(copy=False)` permits views of the source image.
+
+Clip policies are predefined `Literal` values and validated at runtime:
+
+| `rounding` | Minimum edges | Maximum edges |
+|---|---|---|
+| `"none"` (default) | unchanged | unchanged |
+| `"nearest"` | round, ties to even | round, ties to even |
+| `"outward"` | floor | ceil |
+| `"inward"` | ceil | floor |
+
+Rounding happens after bounds clipping. `invalid="keep"` (default) retains all
+rows, matching `sv.clip_boxes`. `"drop"` removes rows and all their corresponding
+fields; `"raise"` reports a `ValueError`. Both reject nonfinite/nonpositive input
+boxes and boxes that become empty after clipping or rounding. Outward rounding
+does not rescue invalid input boxes.
+
+Crop never silently drops a detection. Invalid or pixel-empty regions raise;
+use Clip with an explicit rounding policy and `invalid="drop"` when filtering
+is needed. Its returned detections retain their supplied source-image geometry,
+not coordinates local to each crop. No masks or other annotations are cropped.
+
+```python
+import supervision as sv
+
+from ml_pipes.core import Pipeline
+from ml_pipes.supervision import Detections
+from ml_pipes.vision import ImagePayload
+
+crop_pipeline = Pipeline(
+    [
+        Detections.ClipBoxes(rounding="outward", invalid="drop"),
+        Detections.Crop(),
+    ],
+)
+# Declare the pair at a multi-argument pipeline entry. Here image is an ImagePayload.
+crop_pipeline.validate(pipeline_input_type=tuple[ImagePayload, sv.Detections])
+# kept_detections, crops = crop_pipeline((image, detections))
+```
+
 ## Annotation
 
 All annotators preserve the detection handoff: `(scene, detections)` ->

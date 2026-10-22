@@ -47,6 +47,14 @@ from .core import (
     Detection,
     ImageToArray,
 )
+from .transformations import (
+    DetectionsClipBoxes,
+    DetectionsCrop,
+    DetectionsMerge,
+    DetectionsMoveBoxes,
+    DetectionsPadBoxes,
+    DetectionsScaleBoxes,
+)
 from .views import FPSMonitor, ImageWindow, PlotImage
 from .zones import TrackingTimer, TriggerLineZone, TriggerZone
 
@@ -70,6 +78,12 @@ class Detections:
     NMS = DetectionsNMS
     NMM = DetectionsNMM
     Stitch = DetectionsStitch
+    PadBoxes = DetectionsPadBoxes
+    ScaleBoxes = DetectionsScaleBoxes
+    MoveBoxes = DetectionsMoveBoxes
+    ClipBoxes = DetectionsClipBoxes
+    Crop = DetectionsCrop
+    Merge = DetectionsMerge
 
 
 __all__ = [

@@ -1,8 +1,9 @@
 """Track video objects and ask Qwen3-VL about each confirmed track once.
 
-Run from the repository root using the same Bedrock setup as the image example:
+Run from the repository root (see README_track_and_describe.md for setup):
     python examples/run_track_and_describe.py
     python examples/run_track_and_describe.py --input video.mp4
+    python examples/run_track_and_describe.py --device cpu
     python examples/run_track_and_describe.py --input video.mp4 --prompt "Describe the outfit." --output-video annotated.mp4 --output tracks.json
 
 Build a fresh frame pipeline for each video. Responses, including 'unknown',
@@ -15,7 +16,6 @@ from contextlib import ExitStack
 from copy import deepcopy
 from dataclasses import replace
 import json
-import os
 from pathlib import Path
 from typing import Any
 
@@ -27,11 +27,13 @@ from supervision.assets import VideoAssets, download_assets
 if __package__:
     from . import run_detect_and_describe as describe_image
     from .common import ASSETS_DIR
-    from .run_detect_and_describe import AttachResponses, ClipBoxes, CropDetections, PadBoxes
+    from .qwen_local import LocalQwen3VL, require_local_qwen
+    from .run_detect_and_describe import AttachResponses, LimitCropSize
 else:
     import run_detect_and_describe as describe_image
     from common import ASSETS_DIR
-    from run_detect_and_describe import AttachResponses, ClipBoxes, CropDetections, PadBoxes
+    from qwen_local import LocalQwen3VL, require_local_qwen
+    from run_detect_and_describe import AttachResponses, LimitCropSize
 
 from ml_pipes.core import Pipeline
 from ml_pipes.operator import Operator
@@ -39,14 +41,12 @@ from ml_pipes.standard import Gather, Pick, Recall, Scatter, Select, Store
 from ml_pipes.supervision import (
     BoxAnnotator,
     Detections,
-    ImageToArray,
     ImageWindow,
     LabelAnnotator,
 )
-from ml_pipes.supervision.bedrock import Qwen3VL
 from ml_pipes.supervision.inference import RoboflowInference
 from ml_pipes.supervision.trackers import ByteTrack
-from ml_pipes.vision import Resize
+from ml_pipes.vision import ConvertColorSpace
 
 DEFAULT_VIDEO_ASSET = VideoAssets.PEOPLE_WALKING
 
@@ -106,7 +106,10 @@ def build_frame_pipeline(
     padding: float = 0.05,
     prompt: str = describe_image.DEFAULT_PROMPT,
     qwen_model_id: str = describe_image.DEFAULT_QWEN_MODEL_ID,
-    region_name: str | None = None,
+    device: str = "cpu",
+    max_tokens: int = 256,
+    crop_size: int = describe_image.DEFAULT_CROP_SIZE,
+    api_key: str | None = None,
     frame_rate: float = 30.0,
 ) -> Pipeline[npt.NDArray[np.uint8], tuple[npt.NDArray[np.uint8], sv.Detections]]:
     """Track every frame; describe only uncached IDs; annotate every current track."""
@@ -118,12 +121,16 @@ def build_frame_pipeline(
         raise ValueError("padding must be finite and non-negative.")
     if not np.isfinite(frame_rate) or frame_rate <= 0:
         raise ValueError("frame_rate must be finite and positive.")
+    if not isinstance(crop_size, int) or isinstance(crop_size, bool) or crop_size < 1:
+        raise ValueError("crop_size must be a positive integer.")
+    if not isinstance(max_tokens, int) or isinstance(max_tokens, bool) or max_tokens < 1:
+        raise ValueError("max_tokens must be a positive integer.")
     prepared_prompt = describe_image.build_prompt(prompt)
     track_attributes = TrackAttributes({"response": ""})
     return Pipeline(
         [
             Store("source_frame"),
-            RoboflowInference(model_id=detection_model_id, confidence=confidence),
+            RoboflowInference(model_id=detection_model_id, api_key=api_key, confidence=confidence),
             Select(0),
             Detections.FromInference(),
             Detections.Filter(lambda detections: np.isin(detections.class_id, class_ids)),
@@ -145,22 +152,20 @@ def build_frame_pipeline(
                     np.unique(detections.tracker_id, return_index=True)[1],
                 )
             )),
-            PadBoxes(padding=padding),
+            Detections.ScaleBoxes(1 + 2 * padding),
             Recall("source_frame", prepend=True),
-            ClipBoxes(),
-            CropDetections(),
+            Detections.ClipBoxes(rounding="outward", invalid="drop"),
+            Detections.Crop(),
             Store("new_detections", source=0),
             Pick(1),
             Scatter(max_concurrency=1),
-            Resize(
-                target_size=(1024, 1024),
-                mode="letterbox",
-                allow_scale_up=False,
-                interpolation="area",
+            LimitCropSize(max_size=crop_size),
+            Pick(0),  # Source boxes and tracker IDs stay unchanged.
+            ConvertColorSpace(output_color_space="RGB"),
+            LocalQwen3VL(
+                prompt=prepared_prompt, model_id=qwen_model_id,
+                device=device, max_tokens=max_tokens,
             ),
-            Pick(0),
-            ImageToArray(),
-            Qwen3VL(prompt=prepared_prompt, model_id=qwen_model_id, region_name=region_name),
             Gather(),
             Recall("new_detections", prepend=True),
             AttachResponses(),
@@ -198,13 +203,20 @@ def main() -> int:
     parser.add_argument("--class-ids", type=int, nargs="+", default=describe_image.DEFAULT_CLASS_IDS)
     parser.add_argument("--confidence", type=float, default=0.5)
     parser.add_argument("--padding", type=float, default=0.05)
-    parser.add_argument("--qwen-model-id", default=describe_image.DEFAULT_QWEN_MODEL_ID)
-    parser.add_argument("--prompt", default=describe_image.DEFAULT_PROMPT)
     parser.add_argument(
-        "--region",
-        default=os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "us-east-1",
+        "--qwen-model-id", default=describe_image.DEFAULT_QWEN_MODEL_ID,
+        help=f"Local model ID or path (default: {describe_image.DEFAULT_QWEN_MODEL_ID}).",
     )
+    parser.add_argument("--device", default="cpu", help="Local Qwen device: cpu (default), mps, cuda, or cuda:N.")
+    parser.add_argument("--max-tokens", type=int, default=256, help="Maximum generated answer tokens (default: 256).")
+    parser.add_argument(
+        "--crop-size", type=int, default=describe_image.DEFAULT_CROP_SIZE,
+        help="Maximum crop edge (default: 1024); downscale only, without borders or upscaling.",
+    )
+    parser.add_argument("--api-key", help="Optional Roboflow key for detection; ROBOFLOW_API_KEY also works.")
+    parser.add_argument("--prompt", default=describe_image.DEFAULT_PROMPT)
     args = parser.parse_args()
+    require_local_qwen()
     input_path = args.input or Path(download_assets(DEFAULT_VIDEO_ASSET, directory=ASSETS_DIR))
     if not input_path.is_file():
         parser.error(f"input video not found: {input_path}")
@@ -220,7 +232,10 @@ def main() -> int:
         padding=args.padding,
         prompt=args.prompt,
         qwen_model_id=args.qwen_model_id,
-        region_name=args.region,
+        device=args.device,
+        max_tokens=args.max_tokens,
+        crop_size=args.crop_size,
+        api_key=args.api_key,
         frame_rate=video_info.fps,
     )
     results: dict[int, str] = {}
