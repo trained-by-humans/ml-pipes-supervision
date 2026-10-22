@@ -89,7 +89,7 @@ def test_only_filtered_person_crops_reach_qwen_and_results_stay_aligned(
     assert detector.infer.call_args.kwargs == {"confidence": 0.5}
     np.testing.assert_array_equal(detector.infer.call_args.args[0], source)
     assert detections.class_id.tolist() == [1, 1]
-    assert detections.data["response"].tolist() == ["walking", "standing"]
+    assert list(detections.data["response"]) == ["walking", "standing"]
     assert annotated.shape == source.shape
     assert annotated.dtype == source.dtype
     assert not np.array_equal(annotated, source)
@@ -116,7 +116,7 @@ def test_empty_filtered_results_skip_local_model_initialization(
     annotated, detections = pipeline(source_image[0])
 
     assert len(detections) == 0
-    assert detections.data["response"].tolist() == []
+    assert list(detections.data["response"]) == []
     np.testing.assert_array_equal(annotated, source_image[1])
     plot_image.assert_called_once()
     assert plot_image.call_args.args[0] is annotated
@@ -133,11 +133,11 @@ def test_alternate_class_filter_and_results_are_fresh_on_next_image(
 
     _, detections = pipeline(source_image[0])
     assert detections.class_id.tolist() == [2]
-    assert detections.data["response"].tolist() == ["walking"]
+    assert list(detections.data["response"]) == ["walking"]
     detector.infer.return_value = response([])
     annotated, detections = pipeline(source_image[0])
     assert len(detections) == 0
-    assert detections.data["response"].tolist() == []
+    assert list(detections.data["response"]) == []
     np.testing.assert_array_equal(annotated, source_image[1])
     assert generate.call_count == 1
     assert plot_image.call_count == 2
@@ -166,7 +166,7 @@ def test_annotations_use_only_the_first_response_line_and_preserve_full_text(
     label_spy.assert_called_once()
     assert label_spy.call_args.kwargs["detections"] is detections
     assert label_spy.call_args.kwargs["labels"] == ["casual", "formal"]
-    assert detections.data["response"].tolist() == descriptions
+    assert list(detections.data["response"]) == descriptions
     np.testing.assert_array_equal(detections.xyxy, [[9, 18, 31, 62], [89, 18, 111, 62]])
     np.testing.assert_array_equal(detector.infer.call_args.args[0], source_image[1])
     assert not np.shares_memory(annotated, detector.infer.call_args.args[0])
@@ -181,10 +181,10 @@ def test_attaching_responses_preserves_existing_detection_data_without_mutating_
         data={"class_name": np.asarray(["person"])},
     )
 
-    annotated = example.AttachResponses()(detections, ["walking\nOne foot raised."])
+    annotated = Detections.AttachDataField("response")(detections, ["walking\nOne foot raised."])
 
-    assert annotated.data["class_name"].tolist() == ["person"]
-    assert annotated.data["response"].tolist() == ["walking\nOne foot raised."]
+    assert list(annotated.data["class_name"]) == ["person"]
+    assert list(annotated.data["response"]) == ["walking\nOne foot raised."]
     assert "response" not in detections.data
 
 
@@ -194,7 +194,7 @@ def test_attaching_responses_rejects_misaligned_results(example_models, response
     detections = sv.Detections(xyxy=np.asarray([[0, 0, 10, 10]], dtype=np.float32))
 
     with pytest.raises(ValueError, match="exactly one"):
-        example.AttachResponses()(detections, responses)
+        Detections.AttachDataField("response")(detections, responses)
 
 
 def test_builder_constructs_qwen_inline_from_configuration(example_models):
@@ -251,15 +251,22 @@ def test_attribute_and_description_keep_matching_pipeline_stages(example_models)
     classification_steps = classify.build_pipeline().operators
     description_steps = example.build_pipeline().operators
 
-    assert len(classification_steps) == len(description_steps)
+    assert len(classification_steps) == len(description_steps) + 1
+    parser = next(op for op in classification_steps if isinstance(op, classify.ParseAttributeLabels))
+    common_steps = [op for op in classification_steps if op is not parser]
     differences = [
-        (type(classification), type(description))
-        for classification, description in zip(classification_steps, description_steps)
-        if type(classification) is not type(description)
+        (type(attribute), type(description))
+        for attribute, description in zip(common_steps, description_steps)
+        if type(attribute) is not type(description)
     ]
-    assert differences == [
-        (classify.AttachAttributeLabels, example.AttachResponses),
-    ]
+    assert differences == [(Detections.AttachData, Detections.AttachDataField)]
+    attachment = next(op for op in classification_steps if isinstance(op, Detections.AttachData))
+    assert attachment.overwrite is False
+    attachment_index = classification_steps.index(attachment)
+    assert classification_steps.index(parser) == attachment_index - 2
+    assert classification_steps[attachment_index - 1].name == "detections"
+    field = next(op for op in description_steps if isinstance(op, Detections.AttachDataField))
+    assert field.key == "response" and field.overwrite is False
 
 
 def test_task_prompt_has_shared_grounding_and_annotation_format(example_models):
@@ -345,7 +352,7 @@ def test_large_crops_keep_source_resolution_before_qwen(
 
     _, detections = example.build_pipeline()(image_path)
 
-    assert detections.data["response"].tolist() == ["walking"]
+    assert list(detections.data["response"]) == ["walking"]
     np.testing.assert_array_equal(detections.xyxy, [[0, 0, width, height]])
     prepared = generate.call_args.args[0].array
     assert prepared.shape == shape
@@ -388,7 +395,7 @@ def test_clipping_works_without_padding_and_keeps_metadata_aligned(example_model
 
     assert preserved_image is image
     assert kept.class_id.tolist() == [0, 1]
-    assert kept.data["name"].tolist() == ["first", "second"]
+    assert list(kept.data["name"]) == ["first", "second"]
     np.testing.assert_array_equal(kept.confidence, detections.confidence[:2])
     np.testing.assert_array_equal(kept.xyxy, [[0, 0, 10, 10], [20.25, 10.5, 30, 20]])
     np.testing.assert_array_equal(detections.xyxy, original_boxes)
@@ -444,7 +451,7 @@ def test_fully_outside_crop_boxes_skip_qwen_and_annotations(
     annotated, detections = example.build_pipeline()(source_image[0])
 
     assert len(detections) == 0
-    assert detections.data["response"].tolist() == []
+    assert list(detections.data["response"]) == []
     np.testing.assert_array_equal(annotated, source_image[1])
     generate.assert_not_called()
     plot_image.assert_called_once()
@@ -461,7 +468,7 @@ def test_invalid_regions_are_dropped_and_responses_annotate_surviving_roi_boxes(
     _, detections = example.build_pipeline()(source_image[0])
 
     np.testing.assert_array_equal(detections.xyxy, [[9, 18, 31, 62], [105, 18, 120, 62]])
-    assert detections.data["response"].tolist() == ["walking", "standing"]
+    assert list(detections.data["response"]) == ["walking", "standing"]
     assert "source_xyxy" not in detections.data
     assert generate.call_count == 2
     for call, expected in zip(generate.call_args_list, (
@@ -623,7 +630,7 @@ def test_local_branch_explicitly_converts_crops_to_rgb_and_annotates_roi_boxes(
 
     _, detections = pipeline(source_image[0])
 
-    assert detections.data["response"].tolist() == answers
+    assert list(detections.data["response"]) == answers
     assert label_spy.call_args.kwargs["labels"] == ["casual", "formal"]
     np.testing.assert_array_equal(detections.xyxy, [[9, 18, 31, 62], [89, 18, 111, 62]])
     assert len(calls) == 2

@@ -32,11 +32,39 @@ For the cross-package catalog, see
 | `Detections.FromInference(compact_masks=False)` | Inference result -> `sv.Detections` | Calls `sv.Detections.from_inference(...)`. Opt into cropped encoded masks with `compact_masks=True`; see [compact masks](tutorials/detect_and_annotate.md#compact-masks). |
 | `Detections.FromUltralytics()` | Ultralytics result -> `sv.Detections` | Calls `sv.Detections.from_ultralytics(...)`. |
 | `Detections.FromTensorRegistry(...)` | `TensorRegistry` -> `sv.Detections` | Converts configured `boxes`, `scores`, `classes`, and optional `masks` tensors. |
+| `Detections.AttachData(*, overwrite=False)` | `(sv.Detections, Mapping[str, list or ndarray])` -> `sv.Detections` | Adds multiple aligned data fields atomically; validates all fields before attachment. Existing keys require `overwrite=True`. |
+| `Detections.AttachDataField(key, *, overwrite=False)` | `(sv.Detections, list or ndarray)` -> `sv.Detections` | Adds one aligned column to `data[key]`. Existing keys require `overwrite=True`. |
 | `Detections.Filter(filter_fn)` | `sv.Detections` -> `sv.Detections` | Applies a custom callable that returns detections or a boolean selection mask, while retaining the detections contract. |
 | `Detections.NMS(...)` | `sv.Detections` -> `sv.Detections` | Applies [upstream non-maximum suppression](https://supervision.roboflow.com/0.30.9/detection/core/#supervision.detection.core.Detections.with_nms): masks first, otherwise oriented boxes, otherwise `xyxy` boxes. |
 | `Detections.NMM(...)` | `sv.Detections` -> `sv.Detections` | Applies Supervision non-maximum merge. |
 | `Detections.Stitch()` | `(list[sv.Detections], list[TileRect])` -> `sv.Detections` | Moves tiled detections into source-image coordinates and merges them. |
 | `DetectionsSmoother(length=5)` | `sv.Detections` -> `sv.Detections` | Smooths tracked boxes over `length` frames; requires tracker IDs and does not support segmentation. See [smoothing and reset](tutorials/track_objects.md#smooth-tracked-detections). |
+
+`AttachData` accepts a mapping of field names to aligned columns;
+`AttachDataField` accepts one column and a configured key. Both return new
+detections with a separate data dictionary, preserving geometry, classes,
+confidence, tracking IDs, other data, and collection-level `metadata`.
+Each column must be a list or NumPy array whose outer length matches the
+detection count. Nested values retain their supplied types and shapes,
+including ragged lists, sets, dictionaries, and arrays. Lists are not converted
+to arrays; values may share storage, so this is not a deep copy.
+
+For example, one detection may have several accessories while another has none:
+
+```python
+enriched = Detections.AttachData()(detections, {
+    "age": [30, 40],
+    "occupation": ["teacher", "engineer"],
+    "accessories": [{"hat", "glasses"}, set()],
+})
+enriched = Detections.AttachDataField("response")(enriched, responses)
+```
+
+Empty fields work with empty detections, and an empty mapping adds nothing.
+Scalars are not broadcast, rows are never dropped, and alignment is positional
+rather than an ID-based join. Invalid fields or collisions leave the input
+unchanged, including when attaching several fields. Parse model responses
+before attachment; cross-frame caches belong in separate steps.
 
 ## Detection Transformations
 
@@ -113,7 +141,9 @@ or heat without replacing the configured annotator.
 confidence, and tracker-ID labels with the `show_*` options, or create labels
 from any detection data with `label_formatter=...`. The callback receives a
 `Detection` with its box, confidence, class ID, tracker ID, and per-detection
-data, and must return the label text.
+data, and must return the label text. Each data field is the row value,
+regardless of whether its column is a list or array; nested collections are
+not wrapped or flattened.
 
 Annotators backed by Supervision's per-detection color lookup also accept
 `custom_color_lookup=...`. This callback receives the same `Detection` and

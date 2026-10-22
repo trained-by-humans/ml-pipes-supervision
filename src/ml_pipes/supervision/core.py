@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
-from typing import Any, cast
+from dataclasses import dataclass, replace
+from typing import Any, TypeAlias, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -12,6 +12,33 @@ from supervision.detection.tools.inference_slicer import move_detections
 from ml_pipes.operator import Operator
 from ml_pipes.tensor import TensorRegistry
 from ml_pipes.vision import ImagePayload, TileRect
+
+
+DetectionDataField: TypeAlias = list[Any] | npt.NDArray[np.generic]
+
+
+def _validate_data_key(key: str) -> None:
+    if not isinstance(key, str) or not key.strip():
+        raise ValueError("Data keys must be non-empty strings.")
+
+
+def _attach_data(
+    detections: sv.Detections, data: Mapping[str, DetectionDataField], *, overwrite: bool,
+) -> sv.Detections:
+    if not isinstance(data, Mapping):
+        raise TypeError("Data must be a mapping of field names to lists or NumPy arrays.")
+    fields = dict(data)
+    for key, values in fields.items():
+        _validate_data_key(key)
+        if not isinstance(values, (list, np.ndarray)):
+            raise TypeError(f"Values for {key!r} must be a list or NumPy array.")
+        if isinstance(values, np.ndarray) and values.ndim == 0:
+            raise ValueError("Values must have a detection axis; scalars are not broadcast.")
+        if len(values) != len(detections):
+            raise ValueError(f"Each detection must have exactly one data value for {key!r}.")
+        if key in detections.data and not overwrite:
+            raise ValueError(f"Data key {key!r} already exists; use overwrite=True to replace it.")
+    return replace(detections, data={**detections.data, **fields})
 
 
 @dataclass(frozen=True)
@@ -93,6 +120,52 @@ class DetectionsFromTensorRegistry:
             class_id=registry[self.classes],
             mask=None if self.masks is None else registry[self.masks],
         )
+
+
+@Operator
+class DetectionsAttachData:
+    """Attach a mapping of aligned fields to ``detections.data`` atomically.
+
+    Each field is a list or array with one entry per detection. Lists, arrays,
+    and nested per-detection collections are retained as supplied, without
+    conversion, flattening, broadcasting, or deep copying. Validate every field
+    before returning new detections with a separate data dictionary. Geometry,
+    other data, and collection-level ``metadata`` are preserved. Existing keys
+    require ``overwrite=True``; rows are never dropped, reordered, or joined by ID.
+    """
+
+    def __init__(self, *, overwrite: bool = False) -> None:
+        if not isinstance(overwrite, bool):
+            raise TypeError("overwrite must be a bool.")
+        self.overwrite = overwrite
+
+    def __call__(
+        self, detections: sv.Detections, data: Mapping[str, DetectionDataField],
+    ) -> sv.Detections:
+        return _attach_data(detections, data, overwrite=self.overwrite)
+
+
+@Operator
+class DetectionsAttachDataField:
+    """Attach one aligned list or array to ``detections.data[key]``.
+
+    Preserve nested values and their types, with no list-to-array conversion.
+    Return new detections with a separate data dictionary, preserving geometry
+    and metadata. Values may share storage: this is not a deep copy. The outer
+    length must match the detection count; existing keys require ``overwrite=True``.
+    """
+
+    def __init__(self, key: str, *, overwrite: bool = False) -> None:
+        _validate_data_key(key)
+        if not isinstance(overwrite, bool):
+            raise TypeError("overwrite must be a bool.")
+        self.key = key
+        self.overwrite = overwrite
+
+    def __call__(
+        self, detections: sv.Detections, values: DetectionDataField,
+    ) -> sv.Detections:
+        return _attach_data(detections, {self.key: values}, overwrite=self.overwrite)
 
 
 @Operator

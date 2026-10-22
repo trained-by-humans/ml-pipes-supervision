@@ -1,0 +1,468 @@
+{
+  "source_pixels_identical": true,
+  "detector_outputs_match": true,
+  "old_detection_count": 11,
+  "new_detection_count": 11,
+  "old_card_count": 27,
+  "old_labels": [
+    "0:LoadFile",
+    "1:Decode",
+    "2:ImageToArray",
+    "3:Store",
+    "4:RoboflowInference",
+    "5:Select",
+    "6:DetectionsFromInference",
+    "7:DetectionsFilter",
+    "8:DetectionsFilter",
+    "9:DetectionsNMS",
+    "10:PadBoxes",
+    "11:Recall",
+    "12:ClipBoxes",
+    "13:CropDetections",
+    "14:Store",
+    "15:Pick",
+    "16:Scatter",
+    "17:LimitCropSize",
+    "18:Pick",
+    "19:ConvertColorSpace",
+    "20:LocalQwen3VL",
+    "22:Recall",
+    "23:AttachResponses",
+    "24:Recall",
+    "25:BoxAnnotator",
+    "26:LabelAnnotator",
+    "27:PlotImage"
+  ],
+  "new_labels": [
+    "0:LoadFile",
+    "1:Decode",
+    "2:ImageToArray",
+    "3:Store",
+    "4:RoboflowInference",
+    "5:Select",
+    "6:DetectionsFromInference",
+    "7:DetectionsFilter",
+    "8:DetectionsFilter",
+    "9:DetectionsNMS",
+    "10:DetectionsScaleBoxes",
+    "11:Recall",
+    "12:DetectionsClipBoxes",
+    "13:DetectionsCrop",
+    "14:Store",
+    "15:Pick",
+    "16:Scatter",
+    "17:ConvertColorSpace",
+    "18:LocalQwen3VL",
+    "20:Recall",
+    "21:DetectionsAttachDataField",
+    "22:Recall",
+    "23:BoxAnnotator",
+    "24:LabelAnnotator",
+    "25:PlotImage"
+  ],
+  "old_boxes": [
+    [
+      1142,
+      952,
+      1243,
+      1080
+    ],
+    [
+      1410,
+      703,
+      1521,
+      888
+    ],
+    [
+      666,
+      651,
+      745,
+      855
+    ],
+    [
+      751,
+      452,
+      824,
+      625
+    ],
+    [
+      568,
+      268,
+      630,
+      412
+    ],
+    [
+      1140,
+      507,
+      1207,
+      657
+    ],
+    [
+      706,
+      240,
+      769,
+      391
+    ],
+    [
+      1447,
+      320,
+      1517,
+      486
+    ],
+    [
+      35,
+      795,
+      142,
+      990
+    ],
+    [
+      1462,
+      473,
+      1542,
+      643
+    ],
+    [
+      261,
+      440,
+      331,
+      610
+    ]
+  ],
+  "new_boxes": [
+    [
+      1136,
+      945,
+      1249,
+      1080
+    ],
+    [
+      1404,
+      693,
+      1527,
+      898
+    ],
+    [
+      662,
+      640,
+      749,
+      866
+    ],
+    [
+      747,
+      443,
+      828,
+      634
+    ],
+    [
+      564,
+      260,
+      634,
+      420
+    ],
+    [
+      1136,
+      499,
+      1211,
+      665
+    ],
+    [
+      702,
+      232,
+      773,
+      399
+    ],
+    [
+      1443,
+      311,
+      1521,
+      495
+    ],
+    [
+      29,
+      785,
+      148,
+      1000
+    ],
+    [
+      1458,
+      464,
+      1546,
+      652
+    ],
+    [
+      257,
+      431,
+      335,
+      619
+    ]
+  ],
+  "old_prepared_crop_boxes": [
+    [
+      1136.95,
+      945.6,
+      1248.05,
+      1080
+    ],
+    [
+      1404.45,
+      693.75,
+      1526.55,
+      897.25
+    ],
+    [
+      662.05,
+      640.8,
+      748.95,
+      865.2
+    ],
+    [
+      747.35,
+      443.35,
+      827.65,
+      633.65
+    ],
+    [
+      564.9,
+      260.8,
+      633.1,
+      419.2
+    ],
+    [
+      1136.65,
+      499.5,
+      1210.35,
+      664.5
+    ],
+    [
+      702.85,
+      232.45,
+      772.15,
+      398.55
+    ],
+    [
+      1443.5,
+      311.7,
+      1520.5,
+      494.3
+    ],
+    [
+      29.65,
+      785.25,
+      147.35,
+      999.75
+    ],
+    [
+      1458,
+      464.5,
+      1546,
+      651.5
+    ],
+    [
+      257.5,
+      431.5,
+      334.5,
+      618.5
+    ]
+  ],
+  "crop_comparison": [
+    {
+      "index": 0,
+      "old_shape": [
+        135,
+        113,
+        3
+      ],
+      "new_shape": [
+        135,
+        113,
+        3
+      ],
+      "pixels_equal": true
+    },
+    {
+      "index": 1,
+      "old_shape": [
+        205,
+        123,
+        3
+      ],
+      "new_shape": [
+        205,
+        123,
+        3
+      ],
+      "pixels_equal": true
+    },
+    {
+      "index": 2,
+      "old_shape": [
+        226,
+        87,
+        3
+      ],
+      "new_shape": [
+        226,
+        87,
+        3
+      ],
+      "pixels_equal": true
+    },
+    {
+      "index": 3,
+      "old_shape": [
+        191,
+        81,
+        3
+      ],
+      "new_shape": [
+        191,
+        81,
+        3
+      ],
+      "pixels_equal": true
+    },
+    {
+      "index": 4,
+      "old_shape": [
+        160,
+        70,
+        3
+      ],
+      "new_shape": [
+        160,
+        70,
+        3
+      ],
+      "pixels_equal": true
+    },
+    {
+      "index": 5,
+      "old_shape": [
+        166,
+        75,
+        3
+      ],
+      "new_shape": [
+        166,
+        75,
+        3
+      ],
+      "pixels_equal": true
+    },
+    {
+      "index": 6,
+      "old_shape": [
+        167,
+        71,
+        3
+      ],
+      "new_shape": [
+        167,
+        71,
+        3
+      ],
+      "pixels_equal": true
+    },
+    {
+      "index": 7,
+      "old_shape": [
+        184,
+        78,
+        3
+      ],
+      "new_shape": [
+        184,
+        78,
+        3
+      ],
+      "pixels_equal": true
+    },
+    {
+      "index": 8,
+      "old_shape": [
+        215,
+        119,
+        3
+      ],
+      "new_shape": [
+        215,
+        119,
+        3
+      ],
+      "pixels_equal": true
+    },
+    {
+      "index": 9,
+      "old_shape": [
+        188,
+        88,
+        3
+      ],
+      "new_shape": [
+        188,
+        88,
+        3
+      ],
+      "pixels_equal": true
+    },
+    {
+      "index": 10,
+      "old_shape": [
+        188,
+        78,
+        3
+      ],
+      "new_shape": [
+        188,
+        78,
+        3
+      ],
+      "pixels_equal": true
+    }
+  ],
+  "responses_identical": 0,
+  "old_first_lines": [
+    "Back view of a person wearing a light-colored shirt and dark pants, with a strap over the shoulder, possibly from a bag or backpack. The person is facing away from the camera and appears to be walking or moving forward.",
+    "Subject: A person wearing a dark shirt, dark shorts, and a backpack, holding a phone to their ear.",
+    "Subject: A person viewed from behind, wearing a dark vest over a plaid shirt, dark pants, and a dark beanie, walking forward while carrying a bag in their left hand.",
+    "Back view of a person wearing a dark backpack, a long-sleeved shirt, and dark pants, walking on a light-colored surface.",
+    "Subject: A person wearing dark clothing, standing in a light-colored area. The person is facing forward, with their hands clasped in front of them. The image is blurry and low-resolution, making it difficult to discern finer details.",
+    "Subject: A person viewed from behind, wearing a dark jacket and carrying a bag, walking on a tiled floor.",
+    "Subject: A person viewed from behind, wearing a dark backpack, a light-colored shirt, and dark pants, walking on a light-colored floor.",
+    "Subject: A man in a dark shirt and pants, walking forward with one leg forward and hands on hips.",
+    "Subject: A person wearing a dark jacket, light-colored pants, and a backpack, standing on a tiled floor.",
+    "Subject: A person in a dark top and dark pants, carrying a light-colored bag or jacket over their shoulder, is walking on a tiled floor. They are holding a small object in their hands, possibly a phone or a small item, and appear to be looking down at it. The image is blurry and low-resolution, making it difficult to discern finer details.",
+    "Subject: A man in dark clothing, standing in a room with a raised foot, possibly in motion."
+  ],
+  "new_first_lines": [
+    "Label: Person wearing a light-colored shirt and dark pants with a strap over the shoulder.",
+    "Subject: A person wearing a backpack, dark shorts, and athletic shoes, holding a bottle. The person is standing on a tiled floor, facing away from the camera, and appears to be looking up or toward the right. The image is blurry and low resolution, making it difficult to determine exact details.",
+    "Subject: A person walking away from the camera, wearing a dark vest over a plaid shirt, dark pants, and a dark beanie, carrying a bag in their left hand.",
+    "Subject: A person wearing a dark backpack, a long-sleeved shirt, and dark pants, walking away from the camera. The image is blurry and low-resolution, making it difficult to discern fine details. The person's face is not visible, and the background is indistinct. The activity appears to be walking, but the exact direction and speed are not clear.",
+    "Subject: A person wearing dark clothing, standing in a light-colored area. The person is facing forward, with their hands in their pockets. The image is blurry and low resolution, making it difficult to discern finer details.",
+    "Subject: A person wearing a dark jacket and carrying a bag, walking on a tiled floor.",
+    "Subject: A person wearing a backpack, walking away from the camera. The person is wearing a light-colored shirt and dark pants. The image is blurry and low resolution, making it difficult to determine exact details.",
+    "Subject: A man wearing a dark shirt and pants, walking forward with one leg forward and hands on hips. The image is blurry and low resolution, making it difficult to determine exact details.",
+    "Subject: A person wearing a dark jacket, light-colored pants, and a backpack, standing on a tiled floor. The person is facing slightly to the right, with their body angled. The image is in grayscale, and the person's face is not visible. The person appears to be in a stationary position, possibly waiting or observing.",
+    "Subject: A person in motion, possibly walking or running, holding a large object. The person is wearing a dark top and pants, and appears to be carrying a large, light-colored item over their shoulder. The image is in grayscale and has a low resolution, making details difficult to discern. The person's face is not visible.",
+    "Subject: A person wearing a dark jacket and pants, standing in a light-colored environment. The person is facing forward, with one leg slightly forward, suggesting a walking motion. The image is low-resolution and blurry, making it difficult to determine exact details."
+  ],
+  "old_prompt": "Task:\nDescribe the visible subject's appearance and activity.\n\nUse only visible evidence in this image crop.\nPut a short answer or label on the first line, followed by a brief explanation\non subsequent lines.\nIf the requested attribute cannot be determined visually, or the crop is too\nsmall, blurry, or obscured, put 'unknown' on the first line and explain why.\nDo not guess hidden personal attributes from appearance.",
+  "new_prompt": "Task:\nDescribe the visible subject's appearance and activity.\n\nUse only visible evidence in this image crop. Put a short answer or label on the first line, followed by a brief explanation on subsequent lines. If the requested attribute cannot be determined visually, or the crop is too small, blurry, or obscured, put 'unknown' on the first line and explain why. Do not guess hidden personal attributes from appearance.",
+  "checks": [
+    "Same source pixels and detector predictions as saved inspection",
+    "ScaleBoxes(1.1) + outward rounding + image clipping verified independently",
+    "Every BGR crop equals its source-image slice",
+    "Every model input equals that crop converted to RGB, without resizing",
+    "11 non-empty responses attached in crop order as a preserved list",
+    "Classes, scores, other data and metadata preserved",
+    "Annotation and final PlotImage completed without errors"
+  ],
+  "new_card_count": 25,
+  "browser_error_count": 0,
+  "error_card_count": 0,
+  "crop_pixels_identical_count": 11,
+  "prompts_identical": false,
+  "prompt_differs_only_in_whitespace": true,
+  "notes": "The previous HTML/pickle and current capture have identical source pixels, detector predictions and all 11 crop images. Final boxes intentionally changed from original detector boxes to outward-rounded, padded/clipped crop boxes. Responses differ: the old recipe prompt used additional line breaks; the current example uses spaces between instructions. This is a pipeline-integrity check, not a VLM accuracy or speed benchmark."
+}

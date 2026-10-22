@@ -54,6 +54,11 @@ detections are recalled. No coordinate-preservation callbacks are needed.
 Unusable crops remain pending and can be described when a valid crop is
 available later.
 
+`Detections.AttachDataField("response", overwrite=True)` attaches new answers,
+explicitly replacing the empty response placeholders populated by the cache.
+Attachment is positional within the surviving crop batch; `TrackAttributes`
+handles the separate tracker-ID join when restoring all current tracks.
+
 The same `TrackAttributes` instance runs before filtering, after attaching new
 answers, and when restoring all current tracks for annotation. Only successfully
 described tracks update the cache. Defaults and `None` never overwrite cached

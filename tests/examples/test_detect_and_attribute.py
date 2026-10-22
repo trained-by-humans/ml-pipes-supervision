@@ -13,7 +13,7 @@ import pytest
 import supervision as sv
 
 from ml_pipes.standard import Gather, Scatter
-from ml_pipes.supervision import ImageToArray, LabelAnnotator
+from ml_pipes.supervision import Detections, ImageToArray, LabelAnnotator
 from ml_pipes.vision import ConvertColorSpace, ImagePayload
 from examples.qwen_local import INSTALL_COMMAND, LocalQwen3VL, require_local_qwen
 
@@ -90,8 +90,8 @@ def test_invalid_regions_are_dropped_and_labels_annotate_surviving_roi_boxes(mod
     _, detections = models.example.build_pipeline(attribute="fashion style", labels=LABELS)(source_image[0])
 
     np.testing.assert_array_equal(detections.xyxy, [[9, 18, 31, 62], [105, 18, 120, 62]])
-    assert detections.data["label"].tolist() == ["formal", "casual"]
-    assert detections.data["response"].tolist() == ["formal", "casual"]
+    assert list(detections.data["label"]) == ["formal", "casual"]
+    assert list(detections.data["response"]) == ["formal", "casual"]
     assert "source_xyxy" not in detections.data
     assert models.generate.call_count == 2
 
@@ -115,12 +115,12 @@ def test_only_filtered_crops_reach_qwen_and_labels_stay_aligned(models, source_i
     assert models.detector.infer.call_args.kwargs == {"confidence": 0.5}
     np.testing.assert_array_equal(models.detector.infer.call_args.args[0], source_image[1])
     assert detections.class_id.tolist() == [1, 1]
-    assert detections.data["attribute"].tolist() == ["fashion style", "fashion style"]
-    assert detections.data["label"].tolist() == ["formal", "casual"]
-    assert detections.data["response"].tolist() == answers
+    assert list(detections.data["attribute"]) == ["fashion style", "fashion style"]
+    assert list(detections.data["label"]) == ["formal", "casual"]
+    assert list(detections.data["response"]) == answers
     assert "similarity" not in detections.data
     np.testing.assert_array_equal(detections.xyxy, [[9, 18, 31, 62], [89, 18, 111, 62]])
-    assert detections.data["class_name"].tolist() == ["person", "person"]
+    assert list(detections.data["class_name"]) == ["person", "person"]
     assert models.generate.call_count == 2
     models.clip.embed_text.assert_not_called()
     models.clip.embed_image.assert_not_called()
@@ -150,9 +150,9 @@ def test_no_usable_detections_leave_qwen_uninitialized(models, source_image, pre
     annotated, detections = pipeline(source_image[0])
 
     assert len(detections) == 0
-    assert detections.data["label"].tolist() == []
-    assert detections.data["response"].tolist() == []
-    assert detections.data["attribute"].tolist() == []
+    assert list(detections.data["label"]) == []
+    assert list(detections.data["response"]) == []
+    assert list(detections.data["attribute"]) == []
     assert qwen._model is qwen._processor is None
     models.construct.assert_called_once_with(model_id=models.example.DEFAULT_DETECTION_MODEL_ID)
     models.clip.embed_text.assert_not_called()
@@ -172,9 +172,9 @@ def test_qwen_operator_is_reused_across_images_and_results_are_fresh(models, sou
     _, empty = pipeline(source_image[0])
 
     assert first.class_id.tolist() == second.class_id.tolist() == [2]
-    assert first.data["label"].tolist() == ["formal"]
-    assert second.data["label"].tolist() == ["sportswear"]
-    assert empty.data["label"].tolist() == []
+    assert list(first.data["label"]) == ["formal"]
+    assert list(second.data["label"]) == ["sportswear"]
+    assert list(empty.data["label"]) == []
     models.construct.assert_called_once_with(model_id=models.example.DEFAULT_DETECTION_MODEL_ID)
     models.qwen_factory.assert_called_once()
     assert models.generate.call_count == 2
@@ -265,7 +265,7 @@ def test_qwen_pipeline_runs_without_clip_backend(models, source_image, monkeypat
 
     _, detections = models.example.build_pipeline()(source_image[0])
 
-    assert detections.data["label"].tolist() == ["formal"]
+    assert list(detections.data["label"]) == ["formal"]
     models.generate.assert_called_once()
     models.clip.embed_image.assert_not_called()
 
@@ -304,8 +304,8 @@ def test_descriptions_reach_qwen_but_only_label_names_are_annotated(models, sour
     assert "Do not invent labels" in operator.prompt
     assert "visible evidence" in operator.prompt
     assert "hidden personal attributes" in operator.prompt
-    assert detections.data["attribute"].tolist() == ["fashion style"]
-    assert detections.data["label"].tolist() == ["formal"]
+    assert list(detections.data["attribute"]) == ["fashion style"]
+    assert list(detections.data["label"]) == ["formal"]
     assert label_spy.call_args.kwargs["labels"] == ["formal"]
 
 
@@ -382,7 +382,7 @@ def test_configuration_is_forwarded_and_qwen_receives_source_resolution_crops(mo
     np.testing.assert_array_equal(detections.xyxy, [[10, 20, 30, 60]])
     assert sum(isinstance(op, ImageToArray) for op in operators) == 1
     assert not any(isinstance(op, models.example.CLIPClassify) for op in operators)
-    assert detections.data["attribute"].tolist() == ["condition"]
+    assert list(detections.data["attribute"]) == ["condition"]
 
 
 @pytest.mark.parametrize("options, message", [
@@ -439,24 +439,27 @@ def test_invalid_embeddings_are_rejected_instead_of_producing_a_label(models, st
         models.example.CLIPClassify("style", LABELS)(np.zeros((10, 10, 3), dtype=np.uint8))
 
 
-def test_attaching_classifications_preserves_detection_data_without_mutation(models):
+def test_clip_classifications_use_public_data_attachment_without_mutation(models):
     detections = sv.Detections(
         xyxy=np.asarray([[0, 0, 10, 10]], dtype=float),
         class_id=np.array([1]), confidence=np.array([0.9]),
         data={"class_name": np.array(["person"])},
     )
-    classified = models.example.AttachClassifications("style: the visible outfit's style")(
-        detections, [models.example.Classification("casual", 0.3)],
-    )
-    assert classified.data["class_name"].tolist() == ["person"]
-    assert classified.data["attribute"].tolist() == ["style"]
-    assert classified.data["label"].tolist() == ["casual"]
-    assert classified.data["similarity"].tolist() == [0.3]
+    classifications = [models.example.Classification("casual", 0.3)]
+    classified = Detections.AttachData()(detections, {
+        "attribute": ["style"],
+        "label": [result.label for result in classifications],
+        "similarity": [result.similarity for result in classifications],
+    })
+    assert list(classified.data["class_name"]) == ["person"]
+    assert list(classified.data["attribute"]) == ["style"]
+    assert list(classified.data["label"]) == ["casual"]
+    assert list(classified.data["similarity"]) == [0.3]
     assert classified.class_id.tolist() == [1]
     assert classified.confidence.tolist() == [0.9]
     assert "label" not in detections.data
     with pytest.raises(ValueError, match="exactly one"):
-        models.example.AttachClassifications("style")(detections, [])
+        Detections.AttachDataField("label")(detections, [])
 
 
 def test_attaching_attribute_labels_preserves_metadata_and_full_text_without_mutating(models):
@@ -467,26 +470,49 @@ def test_attaching_attribute_labels_preserves_metadata_and_full_text_without_mut
     )
     answer = "casual\nEveryday clothing, including a blue"
 
-    result = models.example.AttachAttributeLabels("style: the outfit's visible style", LABELS)(
-        detections, [answer],
+    responses = [answer]
+    fields = models.example.ParseAttributeLabels("style: the outfit's visible style", LABELS)(
+        responses,
     )
+    result = Detections.AttachData()(detections, fields)
 
-    assert result.data["class_name"].tolist() == ["person"]
-    assert result.data["attribute"].tolist() == ["style"]
-    assert result.data["label"].tolist() == ["casual"]
-    assert result.data["response"].tolist() == [answer]
+    assert list(result.data["class_name"]) == ["person"]
+    assert list(result.data["attribute"]) == ["style"]
+    assert list(result.data["label"]) == ["casual"]
+    assert list(result.data["response"]) == [answer]
     assert result.class_id.tolist() == [1]
     assert result.confidence.tolist() == [0.9]
     np.testing.assert_array_equal(result.xyxy, detections.xyxy)
     assert "label" not in detections.data and "response" not in detections.data
+    assert fields["response"] is responses
 
 
 @pytest.mark.parametrize("answers", [[], ["casual", "formal"]])
 def test_attribute_labels_require_aligned_responses(models, answers):
     detections = sv.Detections(xyxy=np.asarray([[0, 0, 10, 10]], dtype=float))
+    fields = models.example.ParseAttributeLabels("style", LABELS)(answers)
 
     with pytest.raises(ValueError, match="exactly one"):
-        models.example.AttachAttributeLabels("style", LABELS)(detections, answers)
+        Detections.AttachData()(detections, fields)
+
+
+@pytest.mark.parametrize("responses, labels", [
+    ([], []),
+    (["casual", " formal \r\nOffice attire."], ["casual", "formal"]),
+    (["", "   ", "for", "Formal", "formal: office attire"], ["unknown"] * 5),
+    (["sportswear\nA partial explanation", "unknown\nNot visible."], ["sportswear", "unknown"]),
+])
+def test_attribute_parser_is_detection_independent_and_retains_raw_responses(models, responses, labels):
+    original = responses.copy()
+    fields = models.example.ParseAttributeLabels("style: visible outfit style", LABELS)(responses)
+
+    assert fields == {
+        "attribute": ["style"] * len(responses),
+        "label": labels,
+        "response": responses,
+    }
+    assert fields["response"] is responses
+    assert responses == original
 
 
 @pytest.mark.parametrize("answer, expected_label", [
@@ -510,8 +536,8 @@ def test_qwen_labels_are_validated_and_only_short_names_are_annotated(
 
     _, detections = pipeline(source_image[0])
 
-    assert detections.data["label"].tolist() == [expected_label]
-    assert detections.data["response"].tolist() == [answer]
+    assert list(detections.data["label"]) == [expected_label]
+    assert list(detections.data["response"]) == [answer]
     assert label_spy.call_args.kwargs["labels"] == [expected_label]
     models.clip.embed_image.assert_not_called()
 

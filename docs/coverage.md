@@ -58,7 +58,7 @@ need an ml-pipes counterpart.
 | `dataset` | Function | `get_coco_class_index_mapping` | None |
 | `detection` | Component | `CompactMask` | AS-IS (`Data`); `Detections.FromInference()` |
 | `detection` | Component | `CSVSink` | AS-IS (`Utility`) |
-| `detection` | Component | `Detections` | AS-IS (`Data`); `Detections.FromInference()`, `Detections.FromUltralytics()`, `Detections.Filter()`, `Detections.NMS()`, `Detections.NMM()`, `Detections.Merge()` |
+| `detection` | Component | `Detections` | AS-IS (`Data`); `Detections.FromInference()`, `Detections.FromUltralytics()`, `Detections.AttachData()`, `Detections.AttachDataField()`, `Detections.Filter()`, `Detections.NMS()`, `Detections.NMM()`, `Detections.Merge()` |
 | `detection` | Component | `DetectionsSmoother` | `DetectionsSmoother` |
 | `detection` | Component | `InferenceSlicer` | `ml_pipes.vision.Tile()` + `Detections.Stitch()` |
 | `detection` | Component | `JSONSink` | AS-IS (`Utility`) |

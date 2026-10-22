@@ -1,0 +1,36 @@
+{
+  "started_at": "2026-10-22T04:54:04.028885+00:00",
+  "source_asset": "ImageAssets.PEOPLE_WALKING",
+  "source_shape": [
+    1080,
+    1920,
+    3
+  ],
+  "source_sha256": "e87f17de40c1565767ea833d758c1e6f5850454621ef18928be082083d672ae8",
+  "example_sha256": "7a54990a5e6f1b06788a0f08c3fedfcf17db32a9879f84b1ffd4b4be75f2f1b3",
+  "detector": "rfdetr-small",
+  "vlm": "Qwen/Qwen3-VL-2B-Instruct",
+  "device": "cpu",
+  "max_tokens": 256,
+  "crop_max_edge": null,
+  "padding": 0.05,
+  "confidence": 0.5,
+  "class_ids": [
+    1
+  ],
+  "prompt": "Task:\nDescribe the visible subject's appearance and activity.\n\nUse only visible evidence in this image crop. Put a short answer or label on the first line, followed by a brief explanation on subsequent lines. If the requested attribute cannot be determined visually, or the crop is too small, blurry, or obscured, put 'unknown' on the first line and explain why. Do not guess hidden personal attributes from appearance.",
+  "detection_count": 11,
+  "torch_threads": 1,
+  "platform": "macOS-15.5-arm64-arm-64bit",
+  "python": "3.12.10",
+  "versions": {
+    "torch": "2.13.0",
+    "transformers": "5.9.0",
+    "inference": "1.3.8",
+    "supervision": "0.30.5",
+    "ml-pipes-core": "0.1.2rc1",
+    "ml-pipes-vision": "0.1.2rc1"
+  },
+  "total_duration_s": 184.08102745900032,
+  "notes": "Real default example via Pipeline.inspect(); CPU float32, sequential crops. Includes inspection snapshots and lazy Qwen loading; detector construction is outside timing. Matplotlib uses Agg. Trace and outputs come from the same invocation."
+}
