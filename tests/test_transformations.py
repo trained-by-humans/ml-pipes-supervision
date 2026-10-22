@@ -1,13 +1,16 @@
 """Detection geometry, raster crop policies, and pipeline integration."""
 from copy import deepcopy
+from typing import Any
 from unittest.mock import create_autospec
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 import supervision as sv
 
 from ml_pipes.core import Pipeline
-from ml_pipes.supervision import Detections
+from ml_pipes.supervision import BoxAnnotator, Detections, LabelAnnotator
+from ml_pipes.validation import PipelineValidationError
 from ml_pipes.vision import ImagePayload
 
 
@@ -309,6 +312,78 @@ def test_clip_crop_pipeline_validates_and_preserves_alignment(image, payload):
     assert kept.class_id.tolist() == [0, 6, 7]
     assert len(crops) == len(kept)
     assert [crop.shape for crop in crops] == [(6, 5, 3), (1, 1, 3), (4, 4, 3)]
+
+
+@pytest.mark.parametrize("image_type, strict", [
+    (np.ndarray, False),
+    (npt.NDArray[np.uint8], False),
+    (npt.NDArray[np.uint8], True),
+    (ImagePayload, False),
+    (ImagePayload, True),
+    pytest.param(np.ndarray, True, marks=pytest.mark.xfail(
+        raises=PipelineValidationError, strict=True,
+        reason="Generic bare ndarray strict validation: trained-by-humans/ml-pipes#88",
+    )),
+])
+def test_clip_contract_preserves_image_type(image, detections, image_type, strict):
+    input_type = tuple[image_type, sv.Detections]
+    pipeline = Pipeline([Detections.ClipBoxes()])
+    contract = pipeline.validate(
+        pipeline_input_type=input_type, strict=strict,
+    )
+
+    # Core publishes bare ndarray annotations as NDArray[Any].
+    published_image_type = npt.NDArray[Any] if image_type is np.ndarray else image_type
+    assert contract.output_type == tuple[published_image_type, sv.Detections]
+    input_image = ImagePayload(image, color_space="RGB") if image_type is ImagePayload else image
+    output_image, _ = pipeline((input_image, detections))
+    assert output_image is input_image
+
+
+@pytest.mark.parametrize("image_type, strict", [
+    (np.ndarray, False),
+    (npt.NDArray[np.uint8], False),
+    (npt.NDArray[np.uint8], True),
+    pytest.param(np.ndarray, True, marks=pytest.mark.xfail(
+        raises=PipelineValidationError, strict=True,
+        reason="Generic bare ndarray strict validation: trained-by-humans/ml-pipes#88",
+    )),
+])
+def test_clip_composes_with_annotators_under_validation(image, image_type, strict):
+    original = image.copy()
+    detections = sv.Detections(
+        xyxy=np.asarray([[-2, -3, 5, 6]], dtype=np.float32), class_id=np.asarray([1]),
+    )
+    pipeline = Pipeline([Detections.ClipBoxes(), BoxAnnotator(), LabelAnnotator()])
+    pipeline.validate(pipeline_input_type=tuple[image_type, sv.Detections], strict=strict)
+
+    annotated, clipped = pipeline((image, detections))
+
+    assert annotated.shape == image.shape
+    assert annotated.dtype == image.dtype
+    np.testing.assert_array_equal(image, original)
+    np.testing.assert_array_equal(clipped.xyxy, [[0, 0, 5, 6]])
+    np.testing.assert_array_equal(detections.xyxy, [[-2, -3, 5, 6]])
+
+
+@pytest.mark.parametrize("image_type", [ImagePayload, np.ndarray | ImagePayload])
+def test_clip_does_not_claim_payload_images_are_annotator_compatible(image_type):
+    pipeline = Pipeline([Detections.ClipBoxes(), BoxAnnotator()])
+    with pytest.raises(PipelineValidationError):
+        pipeline.validate(pipeline_input_type=tuple[image_type, sv.Detections])
+
+
+@pytest.mark.parametrize("input_type", [tuple[str, sv.Detections], tuple[np.ndarray, str]])
+def test_clip_contract_still_rejects_incompatible_inputs(input_type):
+    with pytest.raises(PipelineValidationError):
+        Pipeline([Detections.ClipBoxes()]).validate(pipeline_input_type=input_type)
+
+
+def test_clip_contract_preserves_supported_image_union():
+    image_type = npt.NDArray[np.uint8] | ImagePayload
+    input_type = tuple[image_type, sv.Detections]
+    contract = Pipeline([Detections.ClipBoxes()]).validate(pipeline_input_type=input_type)
+    assert contract.output_type == input_type
 
 
 def test_geometry_pipeline_validates(detections):

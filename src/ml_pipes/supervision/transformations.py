@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Literal, TypeAlias
+from typing import Generic, Literal, TypeAlias, TypeVar
 
 import numpy as np
 import numpy.typing as npt
@@ -13,6 +13,7 @@ from ml_pipes.vision import ImagePayload
 
 
 ImageInput: TypeAlias = npt.NDArray[np.uint8] | ImagePayload
+ImageT = TypeVar("ImageT", bound=ImageInput)
 BoxRounding: TypeAlias = Literal["none", "nearest", "outward", "inward"]
 InvalidBoxPolicy: TypeAlias = Literal["keep", "drop", "raise"]
 
@@ -84,7 +85,7 @@ class DetectionsMoveBoxes:
 
 
 @Operator
-class DetectionsClipBoxes:
+class DetectionsClipBoxes(Generic[ImageT]):
     """Clip boxes to the image, optionally round edges and handle invalid rows.
 
     Defaults match ``sv.clip_boxes``: no rounding and no row removal. ``drop``
@@ -107,8 +108,8 @@ class DetectionsClipBoxes:
         self.invalid = invalid
 
     def __call__(
-        self, image: ImageInput, detections: sv.Detections,
-    ) -> tuple[ImageInput, sv.Detections]:
+        self, image: ImageT, detections: sv.Detections,
+    ) -> tuple[ImageT, sv.Detections]:
         array, _ = _image_array(image)
         height, width = array.shape[:2]
         boxes = sv.clip_boxes(detections.xyxy, resolution_wh=(width, height))

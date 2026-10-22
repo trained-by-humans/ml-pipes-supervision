@@ -587,6 +587,21 @@ def test_cli_prints_and_saves_boxes_with_task_responses(
     np.testing.assert_array_equal(plot_image.call_args.args[0], annotated)
 
 
+def test_cli_empty_detections_prints_only_json(
+    example_models, source_image, monkeypatch, capsys,
+):
+    example, detector, _, generate, _ = example_models
+    detector.infer.return_value = response([])
+    monkeypatch.setattr("sys.argv", [
+        "run_detect_and_describe.py", "--input", str(source_image[0]),
+    ])
+
+    assert example.main() == 0
+
+    assert json.loads(capsys.readouterr().out) == []
+    generate.assert_not_called()
+
+
 def test_cli_reports_annotated_image_write_failure(
     example_models, source_image, tmp_path, monkeypatch,
 ):
