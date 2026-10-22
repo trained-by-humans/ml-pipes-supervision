@@ -8,19 +8,21 @@ description: >-
 
 Pipeline source: [run_detect_and_describe.py](https://github.com/trained-by-humans/ml-pipes-supervision/blob/main/examples/run_detect_and_describe.py)
 
-Detect objects, then ask a vision-language model (VLM) a question about each
-one. The detector finds the boxes; the VLM generates free-form text from their
-image crops. Use this to describe clothing or activity, describe a vehicle's
-visible condition, answer “What is this person carrying?”, or attach searchable
-descriptions to objects. Unlike classification, answers need not come from a
-predefined label set.
+Traditional detection models locate objects and assign class labels, but those
+labels rarely tell the whole story. A detector can find a person or a vehicle;
+a vision-language model (VLM) can describe what the person is carrying or the
+vehicle's visible condition. Combining them adds richer, task-specific information
+to detections without training a new detector for every question.
 
-Build the pipeline in five stages: detection and filtering, crop preparation,
-description, response attachment, and annotation. This example uses local
-RF-DETR Small and Qwen3-VL, but the same structure applies to other detectors
-and VLMs.
+In this recipe, the detector selects the subjects and the VLM answers a question
+about each subject's image crop. The responses stay attached to their detections,
+ready for annotation, search, or further processing. Unlike classification,
+answers need not come from a predefined label set.
 
 ## Install dependencies
+
+This example uses local RF-DETR Small and Qwen3-VL, but the same structure applies
+to other detectors and VLMs. Install the detector integration and local VLM runtime:
 
 ```bash
 python -m pip install "ml-pipes-supervision[inference]"
@@ -30,8 +32,6 @@ python -m pip install "transformers>=4.57.0,<6" "torch>=2.6" "Pillow>=10"
 The VLM runtime is an explicit install, not a common package dependency.
 Save [qwen_local.py](https://raw.githubusercontent.com/trained-by-humans/ml-pipes-supervision/main/examples/qwen_local.py)
 beside your own Python script for the local VLM adapter imported below.
-Scaling, clipping, cropping, and data attachment use the public `Detections`
-operators.
 
 > [!TIP]
 > CPU inference can be slow: the default 2B VLM's float32 weights alone need roughly 8 GB,
@@ -49,10 +49,8 @@ source_path = download_assets(ImageAssets.PEOPLE_WALKING, directory=".")
 
 ## Detect and filter subjects
 
-Every retained detection becomes a VLM request, which is typically much more
-expensive than detection. Filter to relevant classes, discard low-confidence
-predictions, and suppress duplicate boxes before generating descriptions to
-avoid spending inference time and memory on irrelevant or repeated subjects.
+Choose which subjects to describe before calling the VLM. Filtering irrelevant
+or uncertain detections and suppressing duplicates avoids unnecessary requests.
 
 ```python
 import numpy as np
@@ -68,13 +66,13 @@ pipeline = Pipeline(
         LoadFile(),
         Decode(),
         ImageToArray(),
-        Store("source_image"),
+        Store("source_image"),  # Keep the image for cropping and annotation.
         RoboflowInference(model_id="rfdetr-small", confidence=0.5),
-        Select(0),
+        Select(0),  # Select the result for this image.
         Detections.FromInference(),
         Detections.Filter(lambda detections: np.isin(detections.class_id, (1,))),  # RF-DETR: 1 = person.
         Detections.Filter(lambda detections: detections.confidence >= 0.5),
-        Detections.NMS(threshold=0.5),
+        Detections.NMS(threshold=0.5),  # Suppress overlapping duplicate detections.
     ],
     auto_validate=True,
 )
@@ -82,15 +80,10 @@ pipeline = Pipeline(
 
 ## Prepare a crop for each detection
 
-The VLM needs an image, not just detection metadata. Cropping each subject
-from the source image gives it a focused view and helps preserve details.
+Give the VLM a focused view of each subject, with a little surrounding context.
+Clip expanded boxes to the image and discard unusable regions before cropping.
 
-Padding each box by a fraction of its width and height adds nearby context,
-such as an object the person is carrying. Expanded boxes can extend beyond
-the image, so clip them before slicing to avoid negative-index wrapping and
-discard unusable crops.
-
-```{ .py hl_lines="7-10" }
+```{ .py hl_lines="7-11" }
 from ml_pipes.standard import Recall
 
 pipeline = Pipeline(
@@ -99,67 +92,23 @@ pipeline = Pipeline(
         Detections.NMS(threshold=0.5),
         Detections.ScaleBoxes(1.1),  # 5% padding per side.
         Recall("source_image", prepend=True),
+        # Round outward to whole pixels and drop invalid detections.
         Detections.ClipBoxes(rounding="outward", invalid="drop"),
-        Detections.Crop(),
+        Detections.Crop(),  # (detections, BGR crops), aligned in the same order.
     ],
     auto_validate=True,
 )
 ```
-
-The stage returns `(detections, crops)`, with one BGR `ImagePayload` per
-retained detection, in matching order. These same padded, image-clipped boxes
-are used for annotation; original detector coordinates are not restored.
-
-For a padding fraction per side, use `Detections.ScaleBoxes(1 + 2 * padding)`.
-`Detections.PadBoxes(px, py=None)` instead takes pixels per side. Clip drops
-invalid detections with all their row data before the survivors are stored for
-response attachment. No coordinate-preservation callbacks or temporary fields
-are needed.
-
-The recipe chooses outward rounding and drops invalid regions. Public Clip
-defaults instead match `sv.clip_boxes`: no rounding and no row removal.
 
 ## Describe each detection
 
-Each crop is an independent VLM request, so
-[Scatter/Gather](https://ml-pipes.com/regions/#scatter-gather) can process crops
-concurrently and collect answers in input order. This keeps answers aligned
-with their detections even when requests finish out of order.
-
-Prepare each crop according to the model adapter's requirements. Here, the
-adapter expects RGB images. Crops retain their source resolution; the model's
-processor handles resizing, normalization, and patch alignment internally,
-so no additional model-specific preprocessing is needed in the pipeline.
-
-```{ .py hl_lines="10-20" }
-from ml_pipes.standard import Gather, Pick, Scatter
-from ml_pipes.vision import ConvertColorSpace
-
-from qwen_local import LocalQwen3VL
-
-pipeline = Pipeline(
-    [
-        ...,  # Earlier operators unchanged.
-        Detections.Crop(),
-        Store("detections", source=0),
-        Pick(1),  # Select crops from (detections, crops); detections are stored.
-        Scatter(max_concurrency=1),
-        ConvertColorSpace(output_color_space="RGB"),
-        LocalQwen3VL(
-            prompt=prompt,
-            model_id="Qwen/Qwen3-VL-2B-Instruct",
-            device="cpu",
-            max_tokens=256,
-        ),
-        Gather(),
-    ],
-    auto_validate=True,
-)
-```
-
-Here is the full `prompt` used in this guide:
+Ask the VLM about each crop using
+[Scatter/Gather](https://ml-pipes.com/regions/#scatter-gather), keeping the answers
+in detection order. Ground the question in visible evidence and ask the model
+to acknowledge uncertainty.
 
 ```python
+# Use the first line as the annotation label; retain the full response as data.
 prompt = (
     "Task:\nDescribe the visible subject's appearance and activity.\n\n"
     "Use only visible evidence in this image crop. "
@@ -171,33 +120,36 @@ prompt = (
 )
 ```
 
-The first line will become the annotation label; the explanation remains
-available in the full response. Asking for `unknown` helps express uncertainty,
-but does not guarantee correctness. Keep questions grounded in visible evidence,
-not hidden personal traits or facts requiring wider scene or temporal context.
+```{ .py hl_lines="10-20" }
+from ml_pipes.standard import Gather, Pick, Scatter
+from ml_pipes.vision import ConvertColorSpace
 
-!!! warning "Only enable concurrency when the model supports it"
+from qwen_local import LocalQwen3VL
 
-    `Scatter(max_concurrency=N)` can process crops concurrently using threads,
-    not separate processes; `Gather` preserves their input order. Increase
-    `N` only if the model adapter safely handles simultaneous requests and has
-    enough memory. This local Qwen wrapper shares one lazily loaded model and
-    requires sequential calls, so keep `max_concurrency=1`. A concurrency-safe
-    inference server is an option for parallel requests.
+pipeline = Pipeline(
+    [
+        ...,  # Earlier operators unchanged.
+        Detections.Crop(),
+        Store("detections", source=0),  # Keep the padded, clipped detections.
+        Pick(1),  # Pass only the crops to the VLM.
+        Scatter(max_concurrency=1),  # This local Qwen adapter requires sequential calls.
+        ConvertColorSpace(output_color_space="RGB"),  # Qwen expects RGB crops.
+        LocalQwen3VL(
+            prompt=prompt,
+            model_id="Qwen/Qwen3-VL-2B-Instruct",
+            device="cpu",
+            max_tokens=256,  # Cap generated response length.
+        ),
+        Gather(),  # Collect responses in crop order.
+    ],
+    auto_validate=True,
+)
+```
 
 ## Attach responses to detections
 
-Supervision's `Detections` already supports extra per-detection fields through
-its `data` dictionary. Add the answers as `detections.data["response"]` rather
-than introducing a separate result object. `Detections.AttachDataField("response")`
-preserves the supplied padded/clipped boxes, classes, confidence scores,
-tracking IDs, and other data while returning new detections with the responses
-attached. It validates one value per detection, never silently drops rows, and
-does not modify collection-level `metadata`. Existing data keys require explicit
-`overwrite=True`; this recipe adds a new key.
-
-Recall the detections stored before `Scatter` and pair them with the ordered
-responses from `Gather`. Each response occupies the same index as its detection:
+Bring the saved detections back and attach each answer to its subject, so later
+steps can use geometry and descriptions together.
 
 ```{ .py hl_lines="5-6" }
 pipeline = Pipeline(
@@ -205,7 +157,7 @@ pipeline = Pipeline(
         ...,  # Earlier operators unchanged.
         Gather(),
         Recall("detections", prepend=True),
-        Detections.AttachDataField("response"),
+        Detections.AttachDataField("response"),  # One aligned value per detection in data["response"].
     ],
     auto_validate=True,
 )
@@ -213,11 +165,9 @@ pipeline = Pipeline(
 
 ## Annotate the result
 
-With responses attached, annotate the original image with the VLM's answers.
-`LabelAnnotator` accepts a `label_formatter` callback that builds each label
-from the detection itself, including its extra `data` fields.
+Show each subject's crop region and answer on the original image.
 
-```{ .py hl_lines="7-12" }
+```{ .py hl_lines="7-13" }
 from ml_pipes.supervision import BoxAnnotator, LabelAnnotator, PlotImage
 
 pipeline = Pipeline(
@@ -227,9 +177,10 @@ pipeline = Pipeline(
         Recall("source_image", prepend=True),
         BoxAnnotator(),
         LabelAnnotator(
-            label_formatter=lambda detection: detection.data["response"].splitlines()[0],   # Use the first line as a compact label
+            # Display the first line; the complete response stays in detection data.
+            label_formatter=lambda detection: detection.data["response"].splitlines()[0],
         ),
-        PlotImage(at=0),
+        PlotImage(at=0),  # Display the image from (annotated_image, detections).
     ],
     auto_validate=True,
 )
@@ -237,7 +188,7 @@ pipeline = Pipeline(
 
 ## Running the pipeline
 
-Run the completed pipeline to display the annotated image and read the answers:
+Run the completed pipeline to display the annotations and read the full answers.
 
 ??? note "Full pipeline"
 
@@ -262,13 +213,13 @@ Run the completed pipeline to display the annotated image and read the answers:
             Detections.Crop(),
             Store("detections", source=0),
             Pick(1),  # Select crops from (detections, crops); detections are stored.
-            Scatter(max_concurrency=1),
+            Scatter(max_concurrency=1),  # This local Qwen adapter requires sequential calls.
             ConvertColorSpace(output_color_space="RGB"),
             LocalQwen3VL(
                 prompt=prompt,
                 model_id="Qwen/Qwen3-VL-2B-Instruct",
                 device="cpu",
-                max_tokens=256,
+                max_tokens=256,  # Cap generated response length.
             ),
             Gather(),
             Recall("detections", prepend=True),
@@ -303,14 +254,10 @@ The first lines of its first three responses:
 [662.0, 640.0, 749.0, 866.0] Subject: A person walking away from the camera, wearing a dark vest over a plaid shirt, dark pants, and a dark beanie, carrying a bag in their left hand.
 ```
 
-Labels use the first response line without changes. Some responses still include
-prefixes such as `Label:` or `Subject:` and long descriptions, so annotations
-can be wide or clipped at the image edge. See the [full responses](../assets/detect_and_describe/responses.json)
-for all 11 detections, including their boxes and scores.
-
-The model can make mistakes, so review its descriptions. Detection scores don't
-measure how reliable the descriptions are. `max_tokens` limits answer length;
-cut-off answers are still shown.
+First-line labels can still be long or include prefixes such as `Label:` or
+`Subject:`, so some annotations are clipped at the image edge. See the
+[full responses](../assets/detect_and_describe/responses.json) for all 11 subjects.
+Review the descriptions: detector confidence does not measure VLM answer reliability.
 
 ## Run the example
 
@@ -329,29 +276,18 @@ the results.
 
 ## Inspect the Pipeline
 
-Use `Pipeline.inspect()` to capture each step's output, including the crops
-and VLM responses. This runs the models again, so it takes about as long as a
-normal run. Save the result as an HTML report:
+Inspect intermediate crops and responses to check that each answer matches its
+subject. Save the captured steps as an interactive HTML report:
 
 ```python
 from ml_pipes.inspection import PipelineInspector
 
-inspection = pipeline.inspect(source_path)
+inspection = pipeline.inspect(source_path)  # Runs the models again.
 PipelineInspector().save(inspection, "inspection.html")
 ```
 
-The report below was captured from the current example on 2026-10-22 using
-`ImageAssets.PEOPLE_WALKING`. It completed with 11 detections, 11 aligned
-responses, and no failed steps. The report, annotated image, responses, and
-trace all come from the same inspection invocation.
-
-Compared with the earlier capture, detector predictions and all 11 crop images
-are unchanged. Annotation boxes now use the padded, clipped crop regions, and
-responses remain lists after `Detections.AttachDataField("response")`.
-`LimitCropSize` and its extra `Pick` are gone; the report now has 25 cards
-instead of 27. Response wording differs; the old recipe prompt used different
-line breaks from the example. See the [comparison record](../assets/detect_and_describe/comparison.json)
-and [run configuration](../assets/detect_and_describe/run.json).
+The people-walking run below has 11 detections, 11 aligned responses, and no
+failed steps.
 
 [![Detect-and-describe pipeline inspection](../assets/detect_and_describe/inspection.png)](../assets/detect_and_describe/inspection.html)
 
