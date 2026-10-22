@@ -40,91 +40,19 @@ For the cross-package catalog, see
 | `Detections.Stitch()` | `(list[sv.Detections], list[TileRect])` -> `sv.Detections` | Moves tiled detections into source-image coordinates and merges them. |
 | `DetectionsSmoother(length=5)` | `sv.Detections` -> `sv.Detections` | Smooths tracked boxes over `length` frames; requires tracker IDs and does not support segmentation. See [smoothing and reset](tutorials/track_objects.md#smooth-tracked-detections). |
 
-`AttachData` accepts a mapping of field names to aligned columns;
-`AttachDataField` accepts one column and a configured key. Both return new
-detections with a separate data dictionary, preserving geometry, classes,
-confidence, tracking IDs, other data, and collection-level `metadata`.
-Each column must be a list or NumPy array whose outer length matches the
-detection count. Nested values retain their supplied types and shapes,
-including ragged lists, sets, dictionaries, and arrays. Lists are not converted
-to arrays; values may share storage, so this is not a deep copy.
-
-For example, one detection may have several accessories while another has none:
-
-```python
-enriched = Detections.AttachData()(detections, {
-    "age": [30, 40],
-    "occupation": ["teacher", "engineer"],
-    "accessories": [{"hat", "glasses"}, set()],
-})
-enriched = Detections.AttachDataField("response")(enriched, responses)
-```
-
-Empty fields work with empty detections, and an empty mapping adds nothing.
-Scalars are not broadcast, rows are never dropped, and alignment is positional
-rather than an ID-based join. Invalid fields or collisions leave the input
-unchanged, including when attaching several fields. Parse model responses
-before attachment; cross-frame caches belong in separate steps.
-
 ## Detection Transformations
 
-These operators accept `sv.Detections`, not raw box arrays. Geometry operators
-return new detections without mutating their inputs: they change only `xyxy`,
-preserving masks, oriented boxes, keypoints, confidence, classes, tracking IDs,
-data, and metadata. Preserved fields may share storage with the input; this is
-not a deep-copy guarantee. For raw boxes, use a typed `Map` callback with the
-corresponding Supervision helper.
+Transform detection boxes while retaining aligned detection fields. Box edits
+return new detections and affect only `xyxy`; other geometry is left unchanged.
 
-| Operator | Input -> Output | Semantics |
+| Operator | Input -> Output | Notes |
 |---|---|---|
-| `Detections.PadBoxes(px, py=None)` | detections -> detections | `sv.pad_boxes`: pixels added on **each side**; omitted `py` equals `px`. No automatic clipping. |
-| `Detections.ScaleBoxes(factor_x, factor_y=None)` | detections -> detections | Scale width/height around each box's center. Omitted y equals x. Factors must be finite and positive; factors below 1 shrink. Independent factors extend Supervision's scalar API. This does not resize the image or scale coordinates about the origin. |
-| `Detections.MoveBoxes(offset)` | detections -> detections | `sv.move_boxes`: translate boxes by `(dx, dy)`. Other geometry is not translated. |
-| `Detections.ClipBoxes(*, rounding="none", invalid="keep")` | `(image, detections)` -> `(image, detections)` | Clip `xyxy` to image width/height; pass the image through unchanged. Optional rounding and invalid-row handling below. |
-| `Detections.Crop(*, copy=True)` | `(image, detections)` -> `(detections, list[ImagePayload])` | One image region per detection, in matching order. Supervision-style nearest rounding and bounds clamping; copies by default. No crop-local coordinate conversion. |
-| `Detections.Merge()` | `list[sv.Detections]` -> detections | Delegate to `sv.Detections.merge`: concatenate compatible prediction sets. Not the box-union operation called Detections Merge in Inference Workflows. |
-
-Clip and Crop accept non-empty three-channel HWC `uint8` images: bare arrays
-are BGR; `ImagePayload` inputs may be RGB or BGR. Crops preserve the input color
-space and use HWC layout. `Crop(copy=False)` permits views of the source image.
-
-Clip policies are predefined `Literal` values and validated at runtime:
-
-| `rounding` | Minimum edges | Maximum edges |
-|---|---|---|
-| `"none"` (default) | unchanged | unchanged |
-| `"nearest"` | round, ties to even | round, ties to even |
-| `"outward"` | floor | ceil |
-| `"inward"` | ceil | floor |
-
-Rounding happens after bounds clipping. `invalid="keep"` (default) retains all
-rows, matching `sv.clip_boxes`. `"drop"` removes rows and all their corresponding
-fields; `"raise"` reports a `ValueError`. Both reject nonfinite/nonpositive input
-boxes and boxes that become empty after clipping or rounding. Outward rounding
-does not rescue invalid input boxes.
-
-Crop never silently drops a detection. Invalid or pixel-empty regions raise;
-use Clip with an explicit rounding policy and `invalid="drop"` when filtering
-is needed. Its returned detections retain their supplied source-image geometry,
-not coordinates local to each crop. No masks or other annotations are cropped.
-
-```python
-import supervision as sv
-
-from ml_pipes.core import Pipeline
-from ml_pipes.supervision import Detections
-from ml_pipes.vision import ImagePayload
-
-crop_pipeline = Pipeline(
-    [
-        Detections.ClipBoxes(rounding="outward", invalid="drop"),
-        Detections.Crop(),
-    ],
-)
-# Declare the pair at a multi-argument pipeline entry. Here image is an ImagePayload.
-crop_pipeline.validate(pipeline_input_type=tuple[ImagePayload, sv.Detections])
-# kept_detections, crops = crop_pipeline((image, detections))
-```
+| `Detections.PadBoxes(px, py=None)` | `sv.Detections` -> `sv.Detections` | Calls `sv.pad_boxes`: adds pixels on each side; `py` defaults to `px`. Does not clip to image bounds. |
+| `Detections.ScaleBoxes(factor_x, factor_y=None)` | `sv.Detections` -> `sv.Detections` | Scales width/height around each box's center; `factor_y` defaults to `factor_x`. Factors must be finite and positive; values below `1` shrink. Does not resize the image. |
+| `Detections.MoveBoxes(offset)` | `sv.Detections` -> `sv.Detections` | Calls `sv.move_boxes` to translate boxes by `(dx, dy)`. |
+| `Detections.ClipBoxes(*, rounding="none", invalid="keep")` | `(image, sv.Detections)` -> `(image, sv.Detections)` | Clips to image bounds, then rounds; passes the image through unchanged. `rounding`: `"none"`, `"nearest"` (ties to even), `"outward"`, or `"inward"`. `invalid`: `"keep"`, `"drop"` (removes aligned rows), or `"raise"` (`ValueError`). |
+| `Detections.Crop(*, copy=True)` | `(image, sv.Detections)` -> `(sv.Detections, list[ImagePayload])` | One crop per detection, in order, with nearest rounding and bounds clamping. Invalid or empty regions raise; use `ClipBoxes` to filter first. Copies by default; `copy=False` permits views. Returned detections retain source-image coordinates. |
+| `Detections.Merge()` | `list[sv.Detections]` -> `sv.Detections` | Calls `sv.Detections.merge(...)` to concatenate compatible prediction sets. |
 
 ## Annotation
 
@@ -133,29 +61,17 @@ All annotators preserve the detection handoff: `(scene, detections)` ->
 Supervision, so annotation never mutates the source image. Constructor values
 configure the underlying Supervision annotator.
 
-`TraceAnnotator` and `HeatMapAnnotator` retain state across frames. Call the
-operator's `reset()` between independent videos to clear accumulated trajectories
-or heat without replacing the configured annotator.
-
-`LabelAnnotator` and `RichLabelAnnotator` can both compose class,
-confidence, and tracker-ID labels with the `show_*` options, or create labels
-from any detection data with `label_formatter=...`. The callback receives a
-`Detection` with its box, confidence, class ID, tracker ID, and per-detection
-data, and must return the label text. Each data field is the row value,
-regardless of whether its column is a list or array; nested collections are
-not wrapped or flattened.
-
 Annotators backed by Supervision's per-detection color lookup also accept
-`custom_color_lookup=...`. This callback receives the same `Detection` and
+`custom_color_lookup=...`. This callback receives a `Detection` and
 returns an integer index into the configured `color` palette (or
 `border_color` palette for `CropAnnotator`), overriding `color_lookup` with
 color based on tracking IDs or custom detection data.
 
-| Operator group | Operators |
-|---|---|
-| Detection | `BoxAnnotator`, `BoxCornerAnnotator`, `CircleAnnotator`, `ColorAnnotator`, `DotAnnotator`, `EllipseAnnotator`, `HaloAnnotator`, `LabelAnnotator`, `OrientedBoxAnnotator`, `RichLabelAnnotator`, `RoundBoxAnnotator`, `TriangleAnnotator` |
-| Segmentation and region | `MaskAnnotator`, `PolygonAnnotator`, `PolygonZoneAnnotator`, `BlurAnnotator`, `CropAnnotator`, `HeatMapAnnotator`, `PixelateAnnotator` |
-| Tracking and overlays | `TraceAnnotator`, `FPSAnnotator`, `LineZoneAnnotator`, `BackgroundOverlayAnnotator`, `ComparisonAnnotator`, `IconAnnotator`, `PercentageBarAnnotator` |
+| Operator group | Operators | Notes |
+|---|---|---|
+| Detection | `BoxAnnotator`, `BoxCornerAnnotator`, `CircleAnnotator`, `ColorAnnotator`, `DotAnnotator`, `EllipseAnnotator`, `HaloAnnotator`, `LabelAnnotator`, `OrientedBoxAnnotator`, `RichLabelAnnotator`, `RoundBoxAnnotator`, `TriangleAnnotator` | `LabelAnnotator` and `RichLabelAnnotator` compose class, confidence, and tracker-ID labels with `show_*`, or use `label_formatter=...` for custom labels. The callback receives a `Detection` (box, confidence, class ID, tracker ID, and per-detection data) and returns label text. Data fields are row values from lists or arrays; nested collections are not wrapped or flattened. |
+| Segmentation and region | `MaskAnnotator`, `PolygonAnnotator`, `PolygonZoneAnnotator`, `BlurAnnotator`, `CropAnnotator`, `HeatMapAnnotator`, `PixelateAnnotator` | `HeatMapAnnotator` retains heat across frames. Call `reset()` between independent videos to clear accumulated heat without replacing the configured annotator. |
+| Tracking and overlays | `TraceAnnotator`, `FPSAnnotator`, `LineZoneAnnotator`, `BackgroundOverlayAnnotator`, `ComparisonAnnotator`, `IconAnnotator`, `PercentageBarAnnotator` | `TraceAnnotator` retains trajectories across frames. Call `reset()` between independent videos to clear trajectories without replacing the configured annotator. |
 
 ## Zones And Views
 
