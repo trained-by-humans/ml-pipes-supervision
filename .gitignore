@@ -25,6 +25,8 @@ site/
 
 # Downloaded example assets and model weights
 examples/.example_assets/
+# Local-only Bedrock operator; not part of the package or published examples.
+/examples/qwen_bedrock.py
 *.pt
 *.pth
 *.ckpt
