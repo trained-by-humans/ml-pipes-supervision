@@ -54,6 +54,29 @@ def test_older_python_test_extra_keeps_inference_coverage() -> None:
     assert str(requirement.specifier) == "==1.3.8"
 
 
+def test_example_only_qwen_runtime_is_not_declared_as_package_dependencies():
+    with PROJECT.open("rb") as stream:
+        project = tomllib.load(stream)["project"]
+
+    extras = project["optional-dependencies"]
+    assert "local-qwen" not in extras
+    requirements = project["dependencies"] + [value for values in extras.values() for value in values]
+    names = {Requirement(value).name.lower() for value in requirements}
+    assert not names.intersection({"transformers", "torch", "pillow"})
+
+
+def test_example_only_clip_runtime_is_not_declared_as_package_dependencies():
+    with PROJECT.open("rb") as stream:
+        project = tomllib.load(stream)["project"]
+
+    extras = project["optional-dependencies"]
+    assert "clip" not in extras
+    requirements = project["dependencies"] + [value for values in extras.values() for value in values]
+    parsed = [Requirement(value) for value in requirements]
+    assert all("clip" not in requirement.extras for requirement in parsed)
+    assert not {requirement.name.lower() for requirement in parsed}.intersection({"clip", "rf-clip"})
+
+
 def test_bedrock_runtime_is_not_declared_as_package_dependencies():
     with PROJECT.open("rb") as stream:
         project = tomllib.load(stream)["project"]
