@@ -64,7 +64,7 @@ This key is used only by detection, not Qwen. No AWS credentials are needed.
 ## Pipeline and results
 
 The example uses public `Detections.ScaleBoxes`, `Detections.ClipBoxes`, and
-`Detections.Crop`, and reuses `LimitCropSize` from the describe example. It drops
+`Detections.Crop`. It drops
 invalid crop regions and uses the surviving padded, image-clipped boxes for
 annotation. Detection, class/confidence filters, NMS, scatter/gather,
 annotation, display, and optional JSON/image outputs follow the same structure.
@@ -74,13 +74,10 @@ The stages mirror the describe pipeline; the prompt and response attachment diff
   with instructions to copy exactly one label name onto the first line and
   explain briefly afterward. Shared grounding instructions discourage guessing
   hidden attributes and allow `unknown` when visible evidence is insufficient.
-- `LimitCropSize` delegates to ml-pipes `Resize` only when a crop's longest edge
-  exceeds `--crop-size` (default: 1024). Aspect ratio is preserved, rounded to
-  whole pixels. Small crops keep their natural dimensions, with no square borders
-  or upscaling. Box padding for context is separate from image resizing.
 - `ConvertColorSpace(output_color_space="RGB")` supplies an RGB `ImagePayload`
   directly to `LocalQwen3VL`. Detection and annotation still receive BGR pixels.
-  The model processor handles native image sizing, normalization, and patch alignment.
+  Crops retain their source resolution; the model processor handles image sizing,
+  normalization, and patch alignment.
 - `AttachAttributeLabels` strips surrounding whitespace from the first line and
   accepts it only if it exactly matches a supplied label name. Unrecognized,
   malformed, or incomplete labels become `unknown`, even if `unknown` was not

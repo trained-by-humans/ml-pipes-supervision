@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 import supervision as sv
 
-from ml_pipes.standard import Gather, Pick, Scatter
+from ml_pipes.standard import Gather, Scatter
 from ml_pipes.supervision import ImageToArray, LabelAnnotator
 from ml_pipes.vision import ConvertColorSpace, ImagePayload
 from examples.qwen_local import INSTALL_COMMAND, LocalQwen3VL, require_local_qwen
@@ -355,20 +355,17 @@ def test_closed_set_selects_supplied_label_even_for_ties_or_negative_scores(mode
     assert -1 <= result.similarity <= 1
 
 
-def test_configuration_is_forwarded_and_qwen_is_inline_with_explicit_resize(models, source_image):
+def test_configuration_is_forwarded_and_qwen_receives_source_resolution_crops(models, source_image):
     pipeline = models.example.build_pipeline(
         attribute="  condition ", labels=(" casual ", "formal", "sportswear"),
         detection_model_id="custom-detector", qwen_model_id="/models/qwen", device="mps", max_tokens=80,
-        api_key="test-key", confidence=0.7, crop_size=16, padding=0,
+        api_key="test-key", confidence=0.7, padding=0,
     )
     operators = pipeline.operators
-    index = next(i for i, op in enumerate(operators) if isinstance(op, models.example.LimitCropSize))
-    assert isinstance(operators[index - 1], Scatter)
-    assert operators[index].max_size == 16
-    assert isinstance(operators[index + 1], Pick)
-    assert isinstance(operators[index + 2], ConvertColorSpace)
-    assert isinstance(operators[index + 3], LocalQwen3VL)
-    assert isinstance(operators[index + 4], Gather)
+    index = next(i for i, op in enumerate(operators) if isinstance(op, Scatter))
+    assert isinstance(operators[index + 1], ConvertColorSpace)
+    assert isinstance(operators[index + 2], LocalQwen3VL)
+    assert isinstance(operators[index + 3], Gather)
 
     _, detections = pipeline(source_image[0])
 
@@ -380,9 +377,8 @@ def test_configuration_is_forwarded_and_qwen_is_inline_with_explicit_resize(mode
     assert models.detector.infer.call_args.kwargs == {"confidence": 0.7}
     crop = models.generate.call_args.args[0]
     assert crop.color_space == "RGB"
-    assert crop.array.shape == (16, 8, 3)
-    expected = cv2.resize(source_image[1][20:60, 10:30], (8, 16), interpolation=cv2.INTER_AREA)
-    np.testing.assert_array_equal(crop.array, expected[..., ::-1])
+    assert crop.array.shape == (40, 20, 3)
+    np.testing.assert_array_equal(crop.array, source_image[1][20:60, 10:30, ::-1])
     np.testing.assert_array_equal(detections.xyxy, [[10, 20, 30, 60]])
     assert sum(isinstance(op, ImageToArray) for op in operators) == 1
     assert not any(isinstance(op, models.example.CLIPClassify) for op in operators)
@@ -404,9 +400,6 @@ def test_configuration_is_forwarded_and_qwen_is_inline_with_explicit_resize(mode
     ({"confidence": 1.1}, "between 0 and 1"),
     ({"padding": -0.1}, "finite and non-negative"),
     ({"padding": np.nan}, "finite and non-negative"),
-    ({"crop_size": 0}, "positive integer"),
-    ({"crop_size": 1.5}, "positive integer"),
-    ({"crop_size": True}, "positive integer"),
     ({"max_tokens": 0}, "positive integer"),
     ({"max_tokens": 1.5}, "positive integer"),
     ({"max_tokens": True}, "positive integer"),
@@ -532,7 +525,6 @@ def test_builder_defaults_to_described_fashion_style(models):
     )
     assert operator.model_id == "Qwen/Qwen3-VL-2B-Instruct"
     assert operator.device == "cpu" and operator.max_tokens == 256
-    assert models.example.DEFAULT_CROP_SIZE == 1024
     models.construct.assert_called_once_with(model_id=models.example.DEFAULT_DETECTION_MODEL_ID)
     assert operator._model is None
 
@@ -571,11 +563,11 @@ def test_cli_help_works_without_qwen(models, monkeypatch, capsys):
     models.qwen_factory.assert_not_called()
 
 
-def test_cli_forwards_local_qwen_and_crop_options(models, source_image, monkeypatch, capsys):
+def test_cli_forwards_local_qwen_options(models, source_image, monkeypatch, capsys):
     monkeypatch.setattr("sys.argv", [
         "run_detect_and_attribute.py", "--input", str(source_image[0]),
         "--qwen-model-id", "/models/qwen", "--device", "cuda:1", "--max-tokens", "80",
-        "--crop-size", "32", "--api-key", "test-key",
+        "--api-key", "test-key",
     ])
 
     assert models.example.main() == 0
@@ -586,14 +578,17 @@ def test_cli_forwards_local_qwen_and_crop_options(models, source_image, monkeypa
     )
     models.construct.assert_called_once_with(model_id=models.example.DEFAULT_DETECTION_MODEL_ID, api_key="test-key")
     image = models.generate.call_args.args[0]
-    assert image.color_space == "RGB" and image.array.shape == (32, 16, 3)
+    assert image.color_space == "RGB" and image.array.shape == (44, 22, 3)
     assert json.loads(capsys.readouterr().out)[0]["label"] == "formal"
     models.clip.embed_text.assert_not_called()
     models.clip.embed_image.assert_not_called()
 
 
-def test_cli_rejects_clip_model_option_before_loading_any_models(models, monkeypatch):
-    monkeypatch.setattr("sys.argv", ["run_detect_and_attribute.py", "--clip-model-id", "clip/ViT-B-32"])
+@pytest.mark.parametrize("removed_option, value", [
+    ("--clip-model-id", "clip/ViT-B-32"), ("--crop-size", "32"),
+])
+def test_cli_rejects_removed_options_before_loading_any_models(models, monkeypatch, removed_option, value):
+    monkeypatch.setattr("sys.argv", ["run_detect_and_attribute.py", removed_option, value])
 
     with pytest.raises(SystemExit) as error:
         models.example.main()

@@ -32,9 +32,8 @@ Save these example support files beside your own Python script:
 [run_detect_and_describe.py](https://raw.githubusercontent.com/trained-by-humans/ml-pipes-supervision/main/examples/run_detect_and_describe.py),
 [qwen_local.py](https://raw.githubusercontent.com/trained-by-humans/ml-pipes-supervision/main/examples/qwen_local.py),
 and [common.py](https://raw.githubusercontent.com/trained-by-humans/ml-pipes-supervision/main/examples/common.py).
-They provide the crop-size helper, response attachment, and local VLM adapter
-imported below. Scaling, clipping, and cropping use the public `Detections`
-operators.
+They provide the response attachment and local VLM adapter imported below.
+Scaling, clipping, and cropping use the public `Detections` operators.
 
 > [!TIP]
 > CPU inference can be slow: the default 2B VLM's float32 weights alone need roughly 8 GB,
@@ -130,17 +129,15 @@ concurrently and collect answers in input order. This keeps answers aligned
 with their detections even when requests finish out of order.
 
 Prepare each crop according to the model adapter's requirements. Here, the
-adapter expects RGB images. The 1024-pixel maximum edge is a pipeline choice
-to control inference cost, not a Qwen requirement. The model's processor
-handles resizing, normalization, and patch alignment internally, so no
-additional model-specific preprocessing is needed in the pipeline.
+adapter expects RGB images. Crops retain their source resolution; the model's
+processor handles resizing, normalization, and patch alignment internally,
+so no additional model-specific preprocessing is needed in the pipeline.
 
-```{ .py hl_lines="11-23" }
+```{ .py hl_lines="10-20" }
 from ml_pipes.standard import Gather, Pick, Scatter
 from ml_pipes.vision import ConvertColorSpace
 
 from qwen_local import LocalQwen3VL
-from run_detect_and_describe import LimitCropSize
 
 pipeline = Pipeline(
     [
@@ -149,8 +146,6 @@ pipeline = Pipeline(
         Store("detections", source=0),
         Pick(1),  # Select crops from (detections, crops); detections are stored.
         Scatter(max_concurrency=1),
-        LimitCropSize(max_size=1024),
-        Pick(0),  # Discard the crop resize transform; keep the image-space ROI boxes.
         ConvertColorSpace(output_color_space="RGB"),
         LocalQwen3VL(
             prompt=prompt,
@@ -287,8 +282,6 @@ Run the completed pipeline to display the annotated image and read the answers:
             Store("detections", source=0),
             Pick(1),  # Select crops from (detections, crops); detections are stored.
             Scatter(max_concurrency=1),
-            LimitCropSize(max_size=1024),
-            Pick(0),  # Discard the crop resize transform; keep the image-space ROI boxes.
             ConvertColorSpace(output_color_space="RGB"),
             LocalQwen3VL(
                 prompt=prompt,
@@ -390,7 +383,8 @@ The outer `Scatter` timing covers processing all crops; its nested trace shows
 average per-crop timings. This helps identify expensive steps. The captured
 run below predates the public Clip/Crop adapters: the current pipeline replaces
 its example-local geometry steps with the public ScaleBoxes, ClipBoxes, and Crop operators
-shown above. These are historical measurements, not timings of the new steps:
+shown above, and no longer limits crop sizes before RGB conversion. These are
+historical measurements, not timings of the current pipeline:
 
 ```text
   0:LoadFile                        0.32ms  ( 0.0%)

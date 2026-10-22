@@ -13,7 +13,7 @@ import supervision as sv
 
 from ml_pipes.supervision import LabelAnnotator
 from ml_pipes.supervision import trackers as tracker_ops
-from ml_pipes.standard import Pick, Scatter
+from ml_pipes.standard import Scatter
 from examples.qwen_local import INSTALL_COMMAND, LocalQwen3VL, require_local_qwen
 from ml_pipes.vision import ConvertColorSpace, ImagePayload
 
@@ -136,22 +136,19 @@ def test_pending_or_missing_ids_never_reach_qwen(models, frame, ids, expected):
 
 
 @pytest.mark.parametrize("box, expected_shape", [
-    ([10, 20, 30, 60], (16, 8, 3)),
-    ([10, 20, 50, 40], (8, 16, 3)),
+    ([10, 20, 30, 60], (40, 20, 3)),
+    ([10, 20, 50, 40], (20, 40, 3)),
 ])
-def test_oversized_track_crops_are_downscaled_without_borders_and_cached(
+def test_track_crops_keep_source_resolution_and_responses_are_cached(
     models, frame, box, expected_shape,
 ):
     models.tracker.update.return_value = tracked([7], [box])
-    pipeline = models.example.build_frame_pipeline(crop_size=16, padding=0)
+    pipeline = models.example.build_frame_pipeline(padding=0)
     pipeline.validate()
     ops = pipeline.operators
-    index = next(i for i, op in enumerate(ops) if isinstance(op, models.example.LimitCropSize))
-    assert ops[index].max_size == 16
-    assert isinstance(ops[index - 1], Scatter)
-    assert isinstance(ops[index + 1], Pick) and ops[index + 1].indices == (0,)
-    assert isinstance(ops[index + 2], ConvertColorSpace)
-    assert isinstance(ops[index + 3], LocalQwen3VL)
+    index = next(i for i, op in enumerate(ops) if isinstance(op, Scatter))
+    assert isinstance(ops[index + 1], ConvertColorSpace)
+    assert isinstance(ops[index + 2], LocalQwen3VL)
 
     _, first = pipeline(frame)
     _, repeated = pipeline(frame)
@@ -161,10 +158,7 @@ def test_oversized_track_crops_are_downscaled_without_borders_and_cached(
     assert crop.color_space == "RGB" and crop.layout == "HWC"
     assert crop.array.shape == expected_shape
     left, top, right, bottom = box
-    expected = cv2.resize(
-        frame[top:bottom, left:right], expected_shape[1::-1], interpolation=cv2.INTER_AREA,
-    )
-    np.testing.assert_array_equal(crop.array, expected[..., ::-1])
+    np.testing.assert_array_equal(crop.array, frame[top:bottom, left:right, ::-1])
     for detections in (first, repeated):
         np.testing.assert_array_equal(detections.xyxy, [box])
         assert detections.tracker_id.tolist() == [7]
@@ -402,7 +396,6 @@ def test_filters_run_before_tracking_and_configuration_reaches_both_models(model
     {"frame_rate": 0}, {"frame_rate": np.nan}, {"frame_rate": np.inf},
     {"class_ids": ()}, {"confidence": 1.1}, {"padding": -0.1}, {"prompt": " "},
     {"max_tokens": 0}, {"padding": np.nan}, {"padding": np.inf},
-    {"crop_size": 0}, {"crop_size": -1}, {"crop_size": 1.5}, {"crop_size": True},
 ])
 def test_invalid_options_fail_before_models_are_loaded(models, options):
     with pytest.raises(ValueError):
@@ -652,14 +645,14 @@ def test_cli_video_accepts_local_model_options(models, video, monkeypatch, capsy
     def describe(self, image: ImagePayload) -> str:
         calls.append(self)
         assert image.color_space == "RGB"
-        assert image.array.shape == (32, 16, 3)
+        assert image.array.shape == (44, 22, 3)
         return "casual\nBlue jeans."
 
     monkeypatch.setattr(LocalQwen3VL, "__call__", describe)
     monkeypatch.setattr("sys.argv", [
         "run_track_and_describe.py", "--input", str(video),
         "--qwen-model-id", "/models/qwen", "--device", "cuda:1", "--max-tokens", "80",
-        "--crop-size", "32", "--api-key", "test-key",
+        "--api-key", "test-key",
     ])
 
     assert models.example.main() == 0
@@ -675,8 +668,10 @@ def test_cli_video_accepts_local_model_options(models, video, monkeypatch, capsy
     models.qwen_factory.assert_called_once()
 
 
-@pytest.mark.parametrize("removed_option, value", [("--qwen-backend", "bedrock"), ("--region", "us-east-1")])
-def test_cli_rejects_remote_options_before_loading_models(models, monkeypatch, removed_option, value):
+@pytest.mark.parametrize("removed_option, value", [
+    ("--qwen-backend", "bedrock"), ("--region", "us-east-1"), ("--crop-size", "32"),
+])
+def test_cli_rejects_removed_options_before_loading_models(models, monkeypatch, removed_option, value):
     monkeypatch.setattr("sys.argv", ["run_track_and_describe.py", removed_option, value])
 
     with pytest.raises(SystemExit) as error:
