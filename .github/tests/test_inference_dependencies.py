@@ -52,3 +52,14 @@ def test_older_python_test_extra_keeps_inference_coverage() -> None:
     requirement = active_requirements("test", "3.12")["inference"]
 
     assert str(requirement.specifier) == "==1.3.8"
+
+
+def test_bedrock_runtime_is_not_declared_as_package_dependencies():
+    with PROJECT.open("rb") as stream:
+        project = tomllib.load(stream)["project"]
+
+    extras = project["optional-dependencies"]
+    assert "bedrock" not in extras
+    requirements = project["dependencies"] + [value for values in extras.values() for value in values]
+    names = {Requirement(value).name.lower() for value in requirements}
+    assert not names.intersection({"boto3", "botocore"})
