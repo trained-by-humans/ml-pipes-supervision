@@ -171,7 +171,6 @@ def main() -> int:
         api_key=args.api_key,
     )
     pipeline.validate()
-    pipeline.describe()
 
     annotated_image, detections = pipeline(input_path)
 
