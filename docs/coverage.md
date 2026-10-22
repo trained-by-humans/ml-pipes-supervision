@@ -8,17 +8,21 @@ description: >-
 
 ## Roles
 
-Not every upstream API needs a port. Configuration and data values are used
-AS-IS; only operators and utilities with value as standalone pipeline steps
-need an ml-pipes counterpart.
+Roles describe how an API is used, not whether it is a class or function.
+Not every upstream API needs a port: native configuration, data, and I/O helpers
+can be used AS-IS. An ml-pipes counterpart makes an operation a composable
+pipeline step.
 
-| Role         | Description           | Examples                                          |
-|--------------|-----------------------|---------------------------------------------------|
-| `Operator`   | Pipeline step         | `BoxAnnotator`, `TriggerZone`, `Detections.Filter()`, `Detections.NMS()` |
-| `Config`     | Constructor value     | `Color`, `Point`, `Position`                      |
-| `Data`       | Pipeline value        | `Detections`, `KeyPoints`, `CompactMask`          |
-| `Utility`    | Direct callable       | `plot_image`, `box_iou`, `resize_image`           |
-| `Deprecated` | Avoid new integration | `ByteTrack`                                       |
+Below, `sv` refers to `supervision`; operator examples come from
+`ml_pipes.supervision`.
+
+| Role | Description | Examples |
+|---|---|---|
+| `Operator` | Composable ml-pipes pipeline step | `BoxAnnotator()`, `Detections.NMS()`, `Detections.PadBoxes(10)`, `PlotImage()` |
+| `Config` | Native value or configured object passed to an operator | `sv.Color`, `sv.ColorLookup`, `sv.OverlapMetric`, `sv.PolygonZone` |
+| `Data` | Native payload passed between pipeline steps | `sv.Detections`, `sv.KeyPoints`, `sv.CompactMask` |
+| `Utility` | Native helper or I/O resource used directly | `sv.get_video_frames_generator`, `sv.CSVSink`, `sv.VideoSink` |
+| `Deprecated` | Deprecated upstream API; prefer its supported replacement | `sv.ByteTrack` (not `ml_pipes.supervision.trackers.ByteTrack`) |
 
 ## Supervision API Coverage
 
@@ -76,11 +80,11 @@ need an ml-pipes counterpart.
 | `detection` | Function | `box_iou_batch_with_jaccard` | None |
 | `detection` | Function | `box_iou_batch` | None |
 | `detection` | Function | `box_iou` | None |
-| `detection` | Function | `box_non_max_merge` | None |
-| `detection` | Function | `box_non_max_suppression` | None |
+| `detection` | Function | `box_non_max_merge` | `Detections.NMM()` — detection-aware |
+| `detection` | Function | `box_non_max_suppression` | `Detections.NMS()` — detection-aware |
 | `detection` | Function | `box_soft_non_max_suppression` | None |
 | `detection` | Function | `calculate_masks_centroids` | None |
-| `detection` | Function | `clip_boxes` | `Detections.ClipBoxes()` |
+| `detection` | Function | `clip_boxes` | `Detections.ClipBoxes()` — detection-aware |
 | `detection` | Function | `contains_holes` | None |
 | `detection` | Function | `contains_multiple_segments` | None |
 | `detection` | Function | `denormalize_boxes` | None |
@@ -90,23 +94,23 @@ need an ml-pipes counterpart.
 | `detection` | Function | `fuzzy_match_index` | None |
 | `detection` | Function | `is_compressed_rle` | None |
 | `detection` | Function | `mask_iou_batch` | None |
-| `detection` | Function | `mask_non_max_merge` | None |
-| `detection` | Function | `mask_non_max_suppression` | None |
+| `detection` | Function | `mask_non_max_merge` | `Detections.NMM()` — detection-aware |
+| `detection` | Function | `mask_non_max_suppression` | `Detections.NMS()` — detection-aware |
 | `detection` | Function | `mask_soft_non_max_suppression` | None |
 | `detection` | Function | `mask_to_polygons` | None |
 | `detection` | Function | `mask_to_rle` | None |
 | `detection` | Function | `mask_to_roi` | None |
 | `detection` | Function | `mask_to_xyxy` | None |
-| `detection` | Function | `move_boxes` | `Detections.MoveBoxes(offset)` |
+| `detection` | Function | `move_boxes` | `Detections.MoveBoxes(offset)` — detection-aware |
 | `detection` | Function | `move_masks` | None |
 | `detection` | Function | `oriented_box_iou_batch` | None |
-| `detection` | Function | `oriented_box_non_max_merge` | None |
-| `detection` | Function | `oriented_box_non_max_suppression` | None |
-| `detection` | Function | `pad_boxes` | `Detections.PadBoxes(px, py=None)` |
+| `detection` | Function | `oriented_box_non_max_merge` | `Detections.NMM()` — detection-aware |
+| `detection` | Function | `oriented_box_non_max_suppression` | `Detections.NMS()` — detection-aware |
+| `detection` | Function | `pad_boxes` | `Detections.PadBoxes(px, py=None)` — detection-aware |
 | `detection` | Function | `polygon_to_mask` | None |
 | `detection` | Function | `polygon_to_xyxy` | None |
 | `detection` | Function | `rle_to_mask` | None |
-| `detection` | Function | `scale_boxes` | `Detections.ScaleBoxes(factor_x, factor_y=None)` |
+| `detection` | Function | `scale_boxes` | `Detections.ScaleBoxes(factor_x, factor_y=None)` — detection-aware |
 | `detection` | Function | `xcycwh_to_xyxy` | None |
 | `detection` | Function | `xywh_to_xyxy` | None |
 | `detection` | Function | `xyxy_to_mask` | None |
@@ -145,7 +149,7 @@ need an ml-pipes counterpart.
 | `utils` | Component | `ImageWindow` | `ImageWindow` |
 | `utils` | Component | `VideoInfo` | AS-IS (`Data`) |
 | `utils` | Component | `VideoSink` | AS-IS (`Utility`) |
-| `utils` | Function | `crop_image` | `Detections.Crop()` |
+| `utils` | Function | `crop_image` | `Detections.Crop()` — detection-aware |
 | `utils` | Function | `cv2_to_pillow` | None |
 | `utils` | Function | `get_image_resolution_wh` | None |
 | `utils` | Function | `get_video_frames_generator` | AS-IS (`Utility`) |
@@ -161,6 +165,11 @@ need an ml-pipes counterpart.
 | `utils` | Function | `resize_image` | None |
 | `utils` | Function | `scale_image` | None |
 | `utils` | Function | `tint_image` | None |
+
+> [!NOTE]
+> Detection-aware counterparts operate on `sv.Detections`, rather than raw box
+> or mask arrays. They cover the corresponding operation without providing an
+> identical low-level input/output API.
 
 Source: [roboflow/supervision](https://github.com/roboflow/supervision/blob/d2aa06b13dc7a56ddce283aa8f8bc04fbe5a5a1d/src/supervision/__init__.py)
 
