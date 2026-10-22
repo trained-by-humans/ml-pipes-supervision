@@ -15,3 +15,9 @@ def test_public_operator_exports() -> None:
 
     for name in supervision.__all__:
         assert getattr(supervision, name) is not None
+
+
+def test_detection_transformations_are_exposed_through_namespace() -> None:
+    for name in ("PadBoxes", "ScaleBoxes", "MoveBoxes", "ClipBoxes", "Crop", "Merge"):
+        assert getattr(supervision.Detections, name) is not None
+        assert name not in supervision.__all__

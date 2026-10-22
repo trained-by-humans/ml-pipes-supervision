@@ -32,8 +32,9 @@ Save these example support files beside your own Python script:
 [run_detect_and_describe.py](https://raw.githubusercontent.com/trained-by-humans/ml-pipes-supervision/main/examples/run_detect_and_describe.py),
 [qwen_local.py](https://raw.githubusercontent.com/trained-by-humans/ml-pipes-supervision/main/examples/qwen_local.py),
 and [common.py](https://raw.githubusercontent.com/trained-by-humans/ml-pipes-supervision/main/examples/common.py).
-They provide the crop helpers and local VLM adapter imported below;
-these are example code, not public package operators.
+They provide the crop-size helper, response attachment, and local VLM adapter
+imported below. Scaling, clipping, and cropping use the public `Detections`
+operators.
 
 > [!TIP]
 > CPU inference can be slow: the default 2B VLM's float32 weights alone need roughly 8 GB,
@@ -92,26 +93,34 @@ such as an object the person is carrying. Expanded boxes can extend beyond
 the image, so clip them before slicing to avoid negative-index wrapping and
 discard unusable crops.
 
-```{ .py hl_lines="9-12" }
+```{ .py hl_lines="7-10" }
 from ml_pipes.standard import Recall
-
-from run_detect_and_describe import ClipBoxes, CropDetections, PadBoxes
 
 pipeline = Pipeline(
     [
         ...,  # Earlier operators unchanged.
         Detections.NMS(threshold=0.5),
-        PadBoxes(padding=0.05),
+        Detections.ScaleBoxes(1.1),  # 5% padding per side.
         Recall("source_image", prepend=True),
-        ClipBoxes(),
-        CropDetections(),
+        Detections.ClipBoxes(rounding="outward", invalid="drop"),
+        Detections.Crop(),
     ],
     auto_validate=True,
 )
 ```
 
 The stage returns `(detections, crops)`, with one BGR `ImagePayload` per
-retained detection, in matching order.
+retained detection, in matching order. These same padded, image-clipped boxes
+are used for annotation; original detector coordinates are not restored.
+
+For a padding fraction per side, use `Detections.ScaleBoxes(1 + 2 * padding)`.
+`Detections.PadBoxes(px, py=None)` instead takes pixels per side. Clip drops
+invalid detections with all their row data before the survivors are stored for
+response attachment. No coordinate-preservation callbacks or temporary fields
+are needed.
+
+The recipe chooses outward rounding and drops invalid regions. Public Clip
+defaults instead match `sv.clip_boxes`: no rounding and no row removal.
 
 ## Describe each detection
 
@@ -136,12 +145,12 @@ from run_detect_and_describe import LimitCropSize
 pipeline = Pipeline(
     [
         ...,  # Earlier operators unchanged.
-        CropDetections(),
+        Detections.Crop(),
         Store("detections", source=0),
         Pick(1),  # Select crops from (detections, crops); detections are stored.
         Scatter(max_concurrency=1),
         LimitCropSize(max_size=1024),
-        Pick(0),  # Discard the resize transform; source boxes stay unchanged.
+        Pick(0),  # Discard the crop resize transform; keep the image-space ROI boxes.
         ConvertColorSpace(output_color_space="RGB"),
         LocalQwen3VL(
             prompt=prompt,
@@ -187,8 +196,8 @@ not hidden personal traits or facts requiring wider scene or temporal context.
 
 Supervision's `Detections` already supports extra per-detection fields through
 its `data` dictionary. Add the answers as `detections.data["response"]` rather
-than introducing a separate result object. This operator preserves the original
-boxes, classes, confidence scores, tracking IDs, and other data while returning
+than introducing a separate result object. This operator preserves the supplied
+padded/clipped boxes, classes, confidence scores, tracking IDs, and other data while returning
 a copy with the responses attached:
 
 ```python
@@ -271,15 +280,15 @@ Run the completed pipeline to display the annotated image and read the answers:
             Detections.Filter(lambda detections: np.isin(detections.class_id, (1,))),  # RF-DETR: 1 = person.
             Detections.Filter(lambda detections: detections.confidence >= 0.5),
             Detections.NMS(threshold=0.5),
-            PadBoxes(padding=0.05),
+            Detections.ScaleBoxes(1.1),
             Recall("source_image", prepend=True),
-            ClipBoxes(),
-            CropDetections(),
+            Detections.ClipBoxes(rounding="outward", invalid="drop"),
+            Detections.Crop(),
             Store("detections", source=0),
             Pick(1),  # Select crops from (detections, crops); detections are stored.
             Scatter(max_concurrency=1),
             LimitCropSize(max_size=1024),
-            Pick(0),  # Discard the resize transform; source boxes stay unchanged.
+            Pick(0),  # Discard the crop resize transform; keep the image-space ROI boxes.
             ConvertColorSpace(output_color_space="RGB"),
             LocalQwen3VL(
                 prompt=prompt,
@@ -378,7 +387,10 @@ print(collector.last_trace)
 ```
 
 The outer `Scatter` timing covers processing all crops; its nested trace shows
-average per-crop timings. This helps identify expensive steps:
+average per-crop timings. This helps identify expensive steps. The captured
+run below predates the public Clip/Crop adapters: the current pipeline replaces
+its example-local geometry steps with the public ScaleBoxes, ClipBoxes, and Crop operators
+shown above. These are historical measurements, not timings of the new steps:
 
 ```text
   0:LoadFile                        0.32ms  ( 0.0%)

@@ -2,6 +2,7 @@
 from importlib import import_module
 from importlib.util import find_spec
 import json
+import sys
 from unittest.mock import MagicMock, create_autospec
 
 import cv2
@@ -10,9 +11,9 @@ import pytest
 import supervision as sv
 
 from ml_pipes.standard import Pick, Scatter
-from ml_pipes.supervision import ImageToArray
-from ml_pipes.supervision.bedrock import Qwen3VL
-from ml_pipes.vision import ImagePayload, Resize
+from ml_pipes.supervision import Detections, ImageToArray
+from examples.qwen_local import INSTALL_COMMAND, LocalQwen3VL, require_local_qwen
+from ml_pipes.vision import ConvertColorSpace, ImagePayload, Resize
 
 
 @pytest.fixture
@@ -32,17 +33,19 @@ def example_models(monkeypatch, plot_image):
     detector = create_autospec(inference_ops.Model, instance=True)
     factory = create_autospec(inference_ops.get_model, return_value=detector)
     monkeypatch.setattr(inference_ops, "get_model", factory)
-    client = MagicMock(spec=["converse"])
-    client.converse.side_effect = [
-        {"output": {"message": {"content": [{"text": label}]}}, "stopReason": "end_turn"}
-        for label in ("walking", "standing")
-    ]
+    generate = MagicMock(side_effect=["walking", "standing"])
+
+    def describe(self, image: ImagePayload) -> str:
+        return generate(image)
+
+    monkeypatch.setattr(LocalQwen3VL, "__call__", describe)
     qwen_factory = create_autospec(
-        Qwen3VL,
-        side_effect=lambda **kwargs: Qwen3VL(**kwargs, client=client),
+        LocalQwen3VL,
+        side_effect=lambda **kwargs: LocalQwen3VL(**kwargs),
     )
-    monkeypatch.setattr(example, "Qwen3VL", qwen_factory)
-    return example, detector, factory, client, qwen_factory
+    monkeypatch.setattr(example, "LocalQwen3VL", qwen_factory)
+    monkeypatch.setattr(example, "require_local_qwen", MagicMock())
+    return example, detector, factory, generate, qwen_factory
 
 
 @pytest.fixture
@@ -68,11 +71,11 @@ def response(predictions):
 def test_only_filtered_person_crops_reach_qwen_and_results_stay_aligned(
     example_models, source_image, plot_image,
 ):
-    example, detector, factory, client, _ = example_models
+    example, detector, factory, generate, _ = example_models
     path, source = source_image
     detector.infer.return_value = response([
         prediction(),
-        prediction(confidence=0.7),  # duplicate: no extra Bedrock request
+        prediction(confidence=0.7),  # duplicate: no extra model call
         prediction(class_id=2, x=50),
         prediction(confidence=0.4, x=70),
         prediction(confidence=0.8, x=100),
@@ -92,28 +95,23 @@ def test_only_filtered_person_crops_reach_qwen_and_results_stay_aligned(
     assert not np.array_equal(annotated, source)
     plot_image.assert_called_once()
     assert plot_image.call_args.args[0] is annotated
-    assert client.converse.call_count == 2
+    assert generate.call_count == 2
     expected_crops = [source[18:62, 9:31], source[18:62, 89:111]]
-    for call, expected in zip(client.converse.call_args_list, expected_crops):
-        content = call.kwargs["messages"][0]["content"]
-        encoded = content[0]["image"]["source"]["bytes"]
-        crop = cv2.imdecode(np.frombuffer(encoded, dtype=np.uint8), cv2.IMREAD_COLOR)
-        assert crop.shape == (1024, 1024, 3)
-        height, width = expected.shape[:2]
-        top, left = (1024 - height) // 2, (1024 - width) // 2
-        np.testing.assert_array_equal(crop[top:top + height, left:left + width], expected)
-        np.testing.assert_array_equal(crop[0, 0], [114, 114, 114])
+    for call, expected in zip(generate.call_args_list, expected_crops):
+        payload = call.args[0]
+        assert payload.color_space == "RGB" and payload.layout == "HWC"
+        crop = payload.array
+        np.testing.assert_array_equal(crop, expected[..., ::-1])
 
 
 @pytest.mark.parametrize("predictions", [[], [prediction(class_id=2)], [prediction(confidence=0.1)]])
-def test_empty_filtered_results_skip_bedrock_initialization(
+def test_empty_filtered_results_skip_local_model_initialization(
     example_models, source_image, predictions, monkeypatch, plot_image,
 ):
-    example, detector, _, client, _ = example_models
+    example, detector, _, generate, _ = example_models
     detector.infer.return_value = response(predictions)
-    monkeypatch.setattr(example, "Qwen3VL", Qwen3VL)
     pipeline = example.build_pipeline(prompt="style")
-    qwen = next(op for op in pipeline.operators if isinstance(op, Qwen3VL))
+    qwen = next(op for op in pipeline.operators if isinstance(op, LocalQwen3VL))
 
     annotated, detections = pipeline(source_image[0])
 
@@ -122,14 +120,14 @@ def test_empty_filtered_results_skip_bedrock_initialization(
     np.testing.assert_array_equal(annotated, source_image[1])
     plot_image.assert_called_once()
     assert plot_image.call_args.args[0] is annotated
-    assert qwen._client is None
-    client.converse.assert_not_called()
+    assert qwen._model is qwen._processor is None
+    generate.assert_not_called()
 
 
 def test_alternate_class_filter_and_results_are_fresh_on_next_image(
     example_models, source_image, plot_image,
 ):
-    example, detector, _, client, _ = example_models
+    example, detector, _, generate, _ = example_models
     pipeline = example.build_pipeline(class_ids=(2,), confidence=0.8)
     detector.infer.return_value = response([prediction(), prediction(class_id=2, confidence=0.8)])
 
@@ -141,7 +139,7 @@ def test_alternate_class_filter_and_results_are_fresh_on_next_image(
     assert len(detections) == 0
     assert detections.data["response"].tolist() == []
     np.testing.assert_array_equal(annotated, source_image[1])
-    assert client.converse.call_count == 1
+    assert generate.call_count == 1
     assert plot_image.call_count == 2
     assert plot_image.call_args.args[0] is annotated
 
@@ -149,12 +147,9 @@ def test_alternate_class_filter_and_results_are_fresh_on_next_image(
 def test_annotations_use_only_the_first_response_line_and_preserve_full_text(
     example_models, source_image, monkeypatch,
 ):
-    example, detector, _, client, _ = example_models
+    example, detector, _, generate, _ = example_models
     descriptions = ["casual\nBlue jeans and a white shirt.", "formal\r\nA dark suit."]
-    client.converse.side_effect = [
-        {"output": {"message": {"content": [{"text": description}]}}, "stopReason": "end_turn"}
-        for description in descriptions
-    ]
+    generate.side_effect = descriptions
     detector.infer.return_value = response([prediction(), prediction(x=100, confidence=0.8)])
     pipeline = example.build_pipeline()
     box = next(op for op in pipeline.operators if isinstance(op, example.BoxAnnotator))
@@ -172,11 +167,11 @@ def test_annotations_use_only_the_first_response_line_and_preserve_full_text(
     assert label_spy.call_args.kwargs["detections"] is detections
     assert label_spy.call_args.kwargs["labels"] == ["casual", "formal"]
     assert detections.data["response"].tolist() == descriptions
-    np.testing.assert_array_equal(detections.xyxy, [[10, 20, 30, 60], [90, 20, 110, 60]])
+    np.testing.assert_array_equal(detections.xyxy, [[9, 18, 31, 62], [89, 18, 111, 62]])
     np.testing.assert_array_equal(detector.infer.call_args.args[0], source_image[1])
     assert not np.shares_memory(annotated, detector.infer.call_args.args[0])
     assert not np.array_equal(annotated, source_image[1])
-    assert client.converse.call_count == 2
+    assert generate.call_count == 2
 
 
 def test_attaching_responses_preserves_existing_detection_data_without_mutating_it(example_models):
@@ -208,18 +203,64 @@ def test_builder_constructs_qwen_inline_from_configuration(example_models):
     pipeline = example.build_pipeline(
         prompt="Describe the colors.",
         qwen_model_id="custom-qwen-model",
-        region_name="us-west-2",
+        device="mps",
     )
 
     constructor.assert_called_once_with(
         prompt=example.build_prompt("Describe the colors."),
         model_id="custom-qwen-model",
-        region_name="us-west-2",
+        device="mps",
+        max_tokens=256,
     )
-    qwen = next(op for op in pipeline.operators if isinstance(op, Qwen3VL))
+    qwen = next(op for op in pipeline.operators if isinstance(op, LocalQwen3VL))
     assert qwen.prompt == example.build_prompt("Describe the colors.")
     assert qwen.model_id == "custom-qwen-model"
-    assert qwen.region_name == "us-west-2"
+    assert qwen.device == "mps"
+
+
+@pytest.mark.parametrize("api_key", [None, "test-key"])
+def test_detector_credentials_and_crop_size_are_forwarded(
+    example_models, source_image, api_key,
+):
+    example, detector, detector_factory, generate, qwen_factory = example_models
+    detector.infer.return_value = response([prediction()])
+    pipeline = example.build_pipeline(
+        detection_model_id="custom-detector", api_key=api_key,
+        confidence=0.7, crop_size=16, padding=0,
+    )
+    pipeline.validate()
+
+    _, detections = pipeline(source_image[0])
+
+    expected = {"model_id": "custom-detector"}
+    if api_key is not None:
+        expected["api_key"] = api_key
+    detector_factory.assert_called_once_with(**expected)
+    assert detector.infer.call_args.kwargs == {"confidence": 0.7}
+    assert "api_key" not in qwen_factory.call_args.kwargs
+    crop = generate.call_args.args[0]
+    assert crop.color_space == "RGB"
+    assert crop.array.shape == (16, 8, 3)
+    expected_crop = cv2.resize(source_image[1][20:60, 10:30], (8, 16), interpolation=cv2.INTER_AREA)
+    np.testing.assert_array_equal(crop.array, expected_crop[..., ::-1])
+    np.testing.assert_array_equal(detections.xyxy, [[10, 20, 30, 60]])
+
+
+def test_attribute_and_description_keep_matching_pipeline_stages(example_models):
+    example, *_ = example_models
+    classify = import_module("examples.run_detect_and_attribute")
+    classification_steps = classify.build_pipeline().operators
+    description_steps = example.build_pipeline().operators
+
+    assert len(classification_steps) == len(description_steps)
+    differences = [
+        (type(classification), type(description))
+        for classification, description in zip(classification_steps, description_steps)
+        if type(classification) is not type(description)
+    ]
+    assert differences == [
+        (classify.AttachAttributeLabels, example.AttachResponses),
+    ]
 
 
 def test_task_prompt_has_shared_grounding_and_annotation_format(example_models):
@@ -241,8 +282,14 @@ def test_task_prompt_has_shared_grounding_and_annotation_format(example_models):
     ({"prompt": " \n\t"}, "non-empty task prompt"),
     ({"padding": -0.1}, "finite and non-negative"),
     ({"padding": np.nan}, "finite and non-negative"),
+    ({"padding": np.inf}, "finite and non-negative"),
     ({"class_ids": ()}, "At least one class ID"),
     ({"confidence": 1.1}, "between 0 and 1"),
+    ({"max_tokens": 0}, "positive integer"),
+    ({"crop_size": 0}, "positive integer"),
+    ({"crop_size": -1}, "positive integer"),
+    ({"crop_size": 1.5}, "positive integer"),
+    ({"crop_size": True}, "positive integer"),
 ])
 def test_invalid_options_fail_before_loading_models(example_models, options, message):
     example, _, detector_factory, _, qwen_factory = example_models
@@ -258,42 +305,116 @@ def test_resize_is_an_explicit_step_between_scatter_and_qwen(example_models):
     example, *_ = example_models
     pipeline = example.build_pipeline()
     operators = pipeline.operators
-    index = next(i for i, op in enumerate(operators) if isinstance(op, Resize))
+    index = next(i for i, op in enumerate(operators) if isinstance(op, example.LimitCropSize))
     resize = operators[index]
 
     assert isinstance(operators[index - 1], Scatter)
-    assert resize.size == (1024, 1024)
-    assert resize.mode == "letterbox"
-    assert resize.allow_scale_up is False
-    assert resize.interpolation == "area"
+    assert resize.max_size == 1024
     assert isinstance(operators[index + 1], Pick)
     assert operators[index + 1].indices == (0,)
-    assert isinstance(operators[index + 2], ImageToArray)
-    assert isinstance(operators[index + 3], Qwen3VL)
+    assert isinstance(operators[index + 2], ConvertColorSpace)
+    assert operators[index + 2].output_color_space == "RGB"
+    assert isinstance(operators[index + 3], LocalQwen3VL)
+    # ImageToArray is used only before detection, not after RGB conversion.
+    assert sum(isinstance(op, ImageToArray) for op in operators) == 1
+
+
+@pytest.mark.parametrize("shape", [(12, 6, 3), (6, 12, 3), (32, 16, 3), (32, 32, 3)])
+def test_crop_size_limit_leaves_small_or_exact_size_crops_untouched(example_models, shape, monkeypatch):
+    example, *_ = example_models
+    image = ImagePayload(array=np.zeros(shape, dtype=np.uint8), color_space="RGB")
+    resize = MagicMock()
+    monkeypatch.setattr(example, "Resize", resize)
+
+    prepared, transform = example.LimitCropSize(max_size=32)(image)
+
+    assert prepared is image
+    assert transform.scale == (1.0, 1.0)
+    assert transform.pad == (0.0, 0.0)
+    assert transform.original_shape == transform.resized_shape == shape[:2]
+    resize.assert_not_called()
+
+
+@pytest.mark.parametrize("shape, expected_shape", [
+    ((64, 32, 3), (16, 8, 3)),
+    ((32, 64, 3), (8, 16, 3)),
+    ((64, 64, 3), (16, 16, 3)),
+    ((100, 1, 3), (16, 1, 3)),
+    ((1, 100, 3), (1, 16, 3)),
+])
+@pytest.mark.parametrize("color_space", ["BGR", "RGB"])
+def test_crop_size_limit_delegates_downscaling_to_resize(
+    example_models, shape, expected_shape, color_space, monkeypatch,
+):
+    example, *_ = example_models
+    pixels = np.arange(np.prod(shape), dtype=np.uint8).reshape(shape)
+    original = pixels.copy()
+    image = ImagePayload(array=pixels, color_space=color_space)
+    resize = MagicMock(wraps=Resize)
+    monkeypatch.setattr(example, "Resize", resize)
+
+    prepared, transform = example.LimitCropSize(max_size=16)(image)
+
+    resize.assert_called_once_with(
+        target_size=expected_shape[:2], mode="resize", interpolation="area",
+    )
+    expected = cv2.resize(pixels, expected_shape[1::-1], interpolation=cv2.INTER_AREA)
+    np.testing.assert_array_equal(prepared.array, expected)
+    np.testing.assert_array_equal(image.array, original)
+    assert prepared.color_space == color_space and prepared.layout == "HWC"
+    assert transform.original_shape == shape[:2]
+    assert transform.resized_shape == expected_shape[:2]
+    assert transform.pad == (0.0, 0.0)
+
+
+@pytest.mark.parametrize("max_size", [0, -1, 1.5, True])
+def test_crop_size_limit_rejects_invalid_bounds(example_models, max_size):
+    example, *_ = example_models
+
+    with pytest.raises(ValueError, match="positive integer"):
+        example.LimitCropSize(max_size=max_size)
+
+
+@pytest.mark.parametrize("shape, layout", [
+    ((0, 4, 3), "HWC"), ((4, 0, 3), "HWC"), ((4, 4), "HW"), ((3, 4, 4), "CHW"),
+])
+def test_crop_size_limit_requires_nonempty_hwc_images(example_models, shape, layout):
+    example, *_ = example_models
+    image = ImagePayload(array=np.zeros(shape, dtype=np.uint8), layout=layout)
+
+    with pytest.raises(ValueError, match="non-empty HWC"):
+        example.LimitCropSize()(image)
 
 
 @pytest.mark.parametrize("padding", [0, 0.05, 0.2])
-def test_crop_preparation_is_three_explicit_steps(example_models, padding):
+def test_crop_preparation_uses_public_operators_and_stores_surviving_roi_boxes(example_models, padding):
     example, *_ = example_models
     pipeline = example.build_pipeline(padding=padding)
     operators = pipeline.operators
-    index = next(i for i, op in enumerate(operators) if isinstance(op, example.PadBoxes))
-
-    assert operators[index].padding == padding
+    index = next(i for i, op in enumerate(operators) if isinstance(op, Detections.ScaleBoxes))
+    assert operators[index].factor_x == operators[index].factor_y == 1 + 2 * padding
+    prepared = operators[index](sv.Detections(xyxy=np.asarray([[0., 0., 20., 40.]])))
+    np.testing.assert_allclose(
+        prepared.xyxy,
+        [[-20 * padding, -40 * padding, 20 + 20 * padding, 40 + 40 * padding]],
+    )
     # Recall supplies the original image only after padding has prepared boxes.
     assert operators[index + 1].name == "source_image"
-    assert isinstance(operators[index + 2], example.ClipBoxes)
-    assert isinstance(operators[index + 3], example.CropDetections)
+    assert isinstance(operators[index + 2], Detections.ClipBoxes)
+    assert operators[index + 2].rounding == "outward"
+    assert operators[index + 2].invalid == "drop"
+    assert isinstance(operators[index + 3], Detections.Crop)
+    assert operators[index + 4].name == "detections"
 
 
-@pytest.mark.parametrize("shape, content_slice", [
-    ((2048, 1024, 3), (slice(None), slice(256, 768))),
-    ((1024, 2048, 3), (slice(256, 768), slice(None))),
+@pytest.mark.parametrize("shape, expected_shape", [
+    ((2048, 1024, 3), (1024, 512, 3)),
+    ((1024, 2048, 3), (512, 1024, 3)),
 ])
-def test_large_crops_are_letterboxed_before_bedrock_without_changing_source_boxes(
-    example_models, tmp_path, shape, content_slice,
+def test_large_crops_are_downscaled_before_qwen_without_borders_or_changing_source_boxes(
+    example_models, tmp_path, shape, expected_shape,
 ):
-    example, detector, _, client, _ = example_models
+    example, detector, _, generate, _ = example_models
     image = np.full(shape, [10, 20, 230], dtype=np.uint8)
     image_path = tmp_path / "large.png"
     assert cv2.imwrite(str(image_path), image)
@@ -307,12 +428,9 @@ def test_large_crops_are_letterboxed_before_bedrock_without_changing_source_boxe
 
     assert detections.data["response"].tolist() == ["walking"]
     np.testing.assert_array_equal(detections.xyxy, [[0, 0, width, height]])
-    content = client.converse.call_args.kwargs["messages"][0]["content"]
-    encoded = content[0]["image"]["source"]["bytes"]
-    prepared = cv2.imdecode(np.frombuffer(encoded, dtype=np.uint8), cv2.IMREAD_COLOR)
-    assert prepared.shape == (1024, 1024, 3)
-    assert np.all(prepared[content_slice] == [10, 20, 230])
-    np.testing.assert_array_equal(prepared[0, 0], [114, 114, 114])
+    prepared = generate.call_args.args[0].array
+    assert prepared.shape == expected_shape
+    assert np.all(prepared == [230, 20, 10])
 
 
 @pytest.mark.parametrize("padding, expected", [
@@ -323,20 +441,13 @@ def test_padding_preserves_detections_and_does_not_clip(example_models, padding,
     example, *_ = example_models
     detections = sv.Detections(xyxy=np.asarray([[0, 0, 20, 40]], dtype=np.int32))
 
-    preserved, crop_boxes = example.PadBoxes(padding=padding)(detections)
+    prepared = Detections.ScaleBoxes(1 + 2 * padding)(detections)
 
-    assert preserved is detections
-    np.testing.assert_array_equal(crop_boxes, expected)
+    assert prepared is not detections
+    np.testing.assert_array_equal(prepared.xyxy, expected)
     np.testing.assert_array_equal(detections.xyxy, [[0, 0, 20, 40]])
-    assert not np.shares_memory(crop_boxes, detections.xyxy)
-
-
-@pytest.mark.parametrize("padding", [-0.1, np.nan, np.inf, -np.inf])
-def test_padding_requires_a_finite_non_negative_fraction(example_models, padding):
-    example, *_ = example_models
-
-    with pytest.raises(ValueError, match="finite and non-negative"):
-        example.PadBoxes(padding=padding)
+    assert not np.shares_memory(prepared.xyxy, detections.xyxy)
+    assert "source_xyxy" not in detections.data
 
 
 def test_clipping_works_without_padding_and_keeps_metadata_aligned(example_models):
@@ -354,44 +465,33 @@ def test_clipping_works_without_padding_and_keeps_metadata_aligned(example_model
     )
     original_boxes = detections.xyxy.copy()
 
-    preserved_image, kept, crop_boxes = example.ClipBoxes()(image, detections, detections.xyxy)
+    preserved_image, kept = Detections.ClipBoxes(invalid="drop")(image, detections)
 
     assert preserved_image is image
     assert kept.class_id.tolist() == [0, 1]
     assert kept.data["name"].tolist() == ["first", "second"]
     np.testing.assert_array_equal(kept.confidence, detections.confidence[:2])
-    np.testing.assert_array_equal(crop_boxes, [[0, 0, 10, 10], [20.25, 10.5, 30, 20]])
-    np.testing.assert_array_equal(kept.xyxy, original_boxes[:2])
+    np.testing.assert_array_equal(kept.xyxy, [[0, 0, 10, 10], [20.25, 10.5, 30, 20]])
     np.testing.assert_array_equal(detections.xyxy, original_boxes)
-    assert not np.shares_memory(crop_boxes, detections.xyxy)
+    assert not np.shares_memory(kept.xyxy, detections.xyxy)
 
 
 def test_cropping_slices_only_prepared_boxes_without_adding_padding(example_models):
     example, *_ = example_models
     image = np.arange(20 * 30 * 3, dtype=np.uint8).reshape(20, 30, 3)
-    detections = sv.Detections(xyxy=np.asarray([[8, 8, 12, 12]], dtype=np.float64))
-    crop_boxes = np.asarray([[2.25, 3.5, 10.75, 12.25]], dtype=np.float64)
+    detections = sv.Detections(xyxy=np.asarray([[2.25, 3.5, 10.75, 12.25]], dtype=np.float64))
+    clipped_image, clipped = Detections.ClipBoxes(rounding="outward", invalid="drop")(image, detections)
+    kept, crops = Detections.Crop()(clipped_image, clipped)
 
-    kept, crops = example.CropDetections()(image, detections, crop_boxes)
-
-    assert kept is detections
+    assert kept is clipped
+    np.testing.assert_array_equal(kept.xyxy, [[2, 3, 11, 13]])
     assert len(crops) == 1
     np.testing.assert_array_equal(crops[0].array, image[3:13, 2:11])
     assert not np.shares_memory(crops[0].array, image)
-    np.testing.assert_array_equal(crop_boxes, [[2.25, 3.5, 10.75, 12.25]])
+    np.testing.assert_array_equal(detections.xyxy, [[2.25, 3.5, 10.75, 12.25]])
 
 
-@pytest.mark.parametrize("operator_name", ["ClipBoxes", "CropDetections"])
-def test_crop_boxes_must_stay_aligned_with_detections(example_models, operator_name):
-    example, *_ = example_models
-    image = np.zeros((20, 30, 3), dtype=np.uint8)
-    detections = sv.Detections(xyxy=np.asarray([[0, 0, 10, 10]], dtype=np.float64))
-
-    with pytest.raises(ValueError, match="exactly one crop box"):
-        getattr(example, operator_name)()(image, detections, np.empty((0, 4)))
-
-
-def test_pad_clip_crop_preserves_alignment_and_original_detection_boxes(example_models):
+def test_pad_clip_crop_preserves_alignment_and_returns_prepared_detection_boxes(example_models):
     example, *_ = example_models
     image = np.zeros((20, 30, 3), dtype=np.uint8)
     detections = sv.Detections(
@@ -402,23 +502,24 @@ def test_pad_clip_crop_preserves_alignment_and_original_detection_boxes(example_
         class_id=np.arange(5),
     )
 
-    preserved, padded_boxes = example.PadBoxes()(detections)
-    clipped_image, kept, clipped_boxes = example.ClipBoxes()(image, preserved, padded_boxes)
-    result, crops = example.CropDetections()(clipped_image, kept, clipped_boxes)
+    prepared = Detections.ScaleBoxes(1.1)(detections)
+    clipped_image, clipped = Detections.ClipBoxes(rounding="outward", invalid="drop")(image, prepared)
+    result, crops = Detections.Crop()(clipped_image, clipped)
 
-    assert result is kept
-    assert kept.class_id.tolist() == [0, 4]
+    assert result.class_id.tolist() == [0, 4]
     assert [crop.shape for crop in crops] == [(11, 11, 3), (11, 22, 3)]
     assert all(isinstance(crop, ImagePayload) for crop in crops)
     assert all(crop.color_space == "BGR" and crop.layout == "HWC" for crop in crops)
     assert all(not np.shares_memory(crop.array, image) for crop in crops)
-    np.testing.assert_array_equal(kept.xyxy, detections.xyxy[[0, 4]])
+    np.testing.assert_array_equal(result.xyxy, [[0, 0, 11, 11], [8, 9, 30, 20]])
+    assert result.xyxy.dtype == detections.xyxy.dtype
+    assert "source_xyxy" not in result.data
 
 
-def test_fully_outside_crop_boxes_skip_bedrock_and_annotations(
+def test_fully_outside_crop_boxes_skip_qwen_and_annotations(
     example_models, source_image, plot_image,
 ):
-    example, detector, _, client, _ = example_models
+    example, detector, _, generate, _ = example_models
     detector.infer.return_value = response([prediction(x=200)])
 
     annotated, detections = example.build_pipeline()(source_image[0])
@@ -426,14 +527,34 @@ def test_fully_outside_crop_boxes_skip_bedrock_and_annotations(
     assert len(detections) == 0
     assert detections.data["response"].tolist() == []
     np.testing.assert_array_equal(annotated, source_image[1])
-    client.converse.assert_not_called()
+    generate.assert_not_called()
     plot_image.assert_called_once()
+
+
+def test_invalid_regions_are_dropped_and_responses_annotate_surviving_roi_boxes(
+    example_models, source_image,
+):
+    example, detector, _, generate, _ = example_models
+    detector.infer.return_value = response([
+        prediction(x=200, confidence=0.99), prediction(), prediction(x=116, confidence=0.8),
+    ])
+
+    _, detections = example.build_pipeline()(source_image[0])
+
+    np.testing.assert_array_equal(detections.xyxy, [[9, 18, 31, 62], [105, 18, 120, 62]])
+    assert detections.data["response"].tolist() == ["walking", "standing"]
+    assert "source_xyxy" not in detections.data
+    assert generate.call_count == 2
+    for call, expected in zip(generate.call_args_list, (
+        source_image[1][18:62, 9:31], source_image[1][18:62, 105:120],
+    )):
+        np.testing.assert_array_equal(call.args[0].array, expected[..., ::-1])
 
 
 def test_cli_defaults_to_people_walking_without_input(
     example_models, source_image, tmp_path, monkeypatch, capsys, plot_image,
 ):
-    example, detector, _, client, _ = example_models
+    example, detector, _, generate, _ = example_models
     detector.infer.return_value = response([prediction()])
     download = MagicMock(return_value=str(source_image[0]))
     monkeypatch.setattr(example, "download_assets", download)
@@ -448,8 +569,46 @@ def test_cli_defaults_to_people_walking_without_input(
     assert len(results) == 1
     assert results[0]["response"] == "walking"
     np.testing.assert_array_equal(detector.infer.call_args.args[0], source_image[1])
-    client.converse.assert_called_once()
+    generate.assert_called_once()
     plot_image.assert_called_once()
+
+
+def test_cli_missing_qwen_prints_install_message_before_download_or_model_loading(
+    example_models, monkeypatch, capsys,
+):
+    example, _, detector_factory, generate, qwen_factory = example_models
+    monkeypatch.setattr(example, "require_local_qwen", require_local_qwen)
+    monkeypatch.setitem(sys.modules, "torch", None)
+    download = MagicMock()
+    monkeypatch.setattr(example, "download_assets", download)
+    monkeypatch.setattr("sys.argv", ["run_detect_and_describe.py"])
+
+    with pytest.raises(SystemExit) as error:
+        example.main()
+
+    assert error.value.code == 1
+    output = capsys.readouterr()
+    assert INSTALL_COMMAND in output.err and "Traceback" not in output.err
+    assert output.out == ""
+    download.assert_not_called()
+    detector_factory.assert_not_called()
+    qwen_factory.assert_not_called()
+    generate.assert_not_called()
+
+
+def test_cli_help_works_without_qwen(example_models, monkeypatch, capsys):
+    example, _, detector_factory, _, qwen_factory = example_models
+    monkeypatch.setattr(example, "require_local_qwen", require_local_qwen)
+    monkeypatch.setitem(sys.modules, "torch", None)
+    monkeypatch.setattr("sys.argv", ["run_detect_and_describe.py", "--help"])
+
+    with pytest.raises(SystemExit) as error:
+        example.main()
+
+    assert error.value.code == 0
+    assert "--qwen-model-id" in capsys.readouterr().out
+    detector_factory.assert_not_called()
+    qwen_factory.assert_not_called()
 
 
 @pytest.mark.parametrize("task_prompt, answer, class_id", [
@@ -463,19 +622,16 @@ def test_cli_prints_and_saves_boxes_with_task_responses(
     example_models, source_image, tmp_path, monkeypatch, capsys, plot_image,
     task_prompt, answer, class_id,
 ):
-    example, detector, _, client, constructor = example_models
+    example, detector, _, generate, constructor = example_models
     download = MagicMock()
     monkeypatch.setattr(example, "download_assets", download)
     detector.infer.return_value = response([prediction(class_id=class_id)])
-    client.converse.side_effect = [{
-        "output": {"message": {"content": [{"text": answer}]}},
-        "stopReason": "end_turn",
-    }]
+    generate.side_effect = [answer]
     output = tmp_path / "results.json"
     output_image = tmp_path / "annotated.png"
     arguments = [
         "run_detect_and_describe.py", "--input", str(source_image[0]),
-        "--output", str(output), "--region", "us-west-2",
+        "--output", str(output),
         "--output-image", str(output_image), "--class-ids", str(class_id), "--padding", "0",
     ]
     if task_prompt is not None:
@@ -487,14 +643,11 @@ def test_cli_prints_and_saves_boxes_with_task_responses(
     download.assert_not_called()
     constructor.assert_called_once_with(
         prompt=example.build_prompt(task_prompt or example.DEFAULT_PROMPT),
-        model_id="qwen.qwen3-vl-235b-a22b", region_name="us-west-2",
+        model_id="Qwen/Qwen3-VL-2B-Instruct", device="cpu", max_tokens=256,
     )
-    content = client.converse.call_args.kwargs["messages"][0]["content"]
-    assert content[1]["text"] == example.build_prompt(task_prompt or example.DEFAULT_PROMPT)
-    encoded = content[0]["image"]["source"]["bytes"]
-    crop = cv2.imdecode(np.frombuffer(encoded, dtype=np.uint8), cv2.IMREAD_COLOR)
+    crop = generate.call_args.args[0].array
     # --padding 0 reaches crop preparation, not just argument parsing.
-    np.testing.assert_array_equal(crop[492:532, 502:522], source_image[1][20:60, 10:30])
+    np.testing.assert_array_equal(crop, source_image[1][20:60, 10:30, ::-1])
     result = json.loads(output.read_text(encoding="utf-8"))
     assert json.loads(capsys.readouterr().out) == result
     assert result == [{
@@ -521,3 +674,108 @@ def test_cli_reports_annotated_image_write_failure(
 
     with pytest.raises(OSError, match="Failed to save annotated image"):
         example.main()
+
+
+def test_local_branch_explicitly_converts_crops_to_rgb_and_annotates_roi_boxes(
+    example_models, source_image, monkeypatch, plot_image,
+):
+    example, detector, _, generate, constructor = example_models
+    detector.infer.return_value = response([
+        prediction(), prediction(class_id=2, x=50), prediction(x=100, confidence=0.8),
+    ])
+    calls = []
+    answers = ["casual\nBlue jeans.", "formal\nA dark suit."]
+
+    def describe(self, image: ImagePayload) -> str:
+        calls.append((self, image))
+        return answers[len(calls) - 1]
+
+    monkeypatch.setattr(LocalQwen3VL, "__call__", describe)
+    pipeline = example.build_pipeline(device="cpu", max_tokens=100)
+    pipeline.validate()
+    ops = pipeline.operators
+    index = next(i for i, op in enumerate(ops) if isinstance(op, example.LimitCropSize))
+    assert isinstance(ops[index + 1], Pick)
+    assert isinstance(ops[index + 2], ConvertColorSpace)
+    assert ops[index + 2].output_color_space == "RGB"
+    assert isinstance(ops[index + 3], LocalQwen3VL)
+    label = next(op for op in ops if isinstance(op, example.LabelAnnotator))
+    label_spy = MagicMock(wraps=label.annotator.annotate)
+    monkeypatch.setattr(label.annotator, "annotate", label_spy)
+
+    _, detections = pipeline(source_image[0])
+
+    assert detections.data["response"].tolist() == answers
+    assert label_spy.call_args.kwargs["labels"] == ["casual", "formal"]
+    np.testing.assert_array_equal(detections.xyxy, [[9, 18, 31, 62], [89, 18, 111, 62]])
+    assert len(calls) == 2
+    assert calls[0][0] is calls[1][0]
+    operator = calls[0][0]
+    assert operator.model_id == example.DEFAULT_QWEN_MODEL_ID
+    assert operator.prompt == example.build_prompt(example.DEFAULT_PROMPT)
+    assert operator.device == "cpu" and operator.max_tokens == 100
+    for (_, crop), expected in zip(calls, (source_image[1][18:62, 9:31], source_image[1][18:62, 89:111])):
+        assert crop.color_space == "RGB" and crop.layout == "HWC"
+        np.testing.assert_array_equal(crop.array, expected[..., ::-1])
+    # Detection still receives the original BGR pixels; only local Qwen is imported.
+    np.testing.assert_array_equal(detector.infer.call_args.args[0], source_image[1])
+    constructor.assert_called_once()
+    assert not hasattr(example, "Qwen3VL")
+    generate.assert_not_called()
+    plot_image.assert_called_once()
+
+
+def test_empty_local_pipeline_does_not_load_qwen(example_models, source_image):
+    example, detector, _, _, constructor = example_models
+    detector.infer.return_value = response([])
+    pipeline = example.build_pipeline()
+    qwen = next(op for op in pipeline.operators if isinstance(op, LocalQwen3VL))
+
+    _, detections = pipeline(source_image[0])
+
+    assert len(detections) == 0
+    assert qwen._model is qwen._processor is None
+    constructor.assert_called_once()
+
+
+@pytest.mark.parametrize("override", [[], ["--qwen-model-id", "/models/qwen", "--device", "mps"]])
+def test_cli_uses_local_qwen_with_default_or_custom_model(
+    example_models, source_image, monkeypatch, capsys, override,
+):
+    example, detector, detector_factory, _, constructor = example_models
+    detector.infer.return_value = response([prediction()])
+    calls = []
+
+    def describe(self, image: ImagePayload) -> str:
+        calls.append(self)
+        assert image.color_space == "RGB"
+        assert image.array.shape == (32, 16, 3)
+        return "casual\nBlue jeans."
+
+    monkeypatch.setattr(LocalQwen3VL, "__call__", describe)
+    monkeypatch.setattr("sys.argv", [
+        "run_detect_and_describe.py", "--input", str(source_image[0]),
+        "--max-tokens", "80", "--crop-size", "32", "--api-key", "test-key", *override,
+    ])
+
+    assert example.main() == 0
+
+    assert calls[0].model_id == ("/models/qwen" if override else example.DEFAULT_QWEN_MODEL_ID)
+    assert calls[0].device == ("mps" if override else "cpu")
+    assert calls[0].max_tokens == 80
+    detector_factory.assert_called_once_with(model_id=example.DEFAULT_DETECTION_MODEL_ID, api_key="test-key")
+    assert json.loads(capsys.readouterr().out)[0]["response"] == "casual\nBlue jeans."
+    constructor.assert_called_once()
+
+
+@pytest.mark.parametrize("removed_option, value", [("--qwen-backend", "bedrock"), ("--region", "us-east-1")])
+def test_cli_rejects_remote_options_before_loading_models(example_models, monkeypatch, removed_option, value):
+    example, _, detector_factory, _, constructor = example_models
+    monkeypatch.setattr("sys.argv", ["run_detect_and_describe.py", removed_option, value])
+
+    with pytest.raises(SystemExit) as error:
+        example.main()
+
+    assert error.value.code == 2
+    detector_factory.assert_not_called()
+    constructor.assert_not_called()

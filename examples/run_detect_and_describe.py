@@ -1,7 +1,8 @@
 """Detect objects, answer a prompt per crop with Qwen3-VL, and annotate them.
 
 The pipeline returns (annotated_image, detections), with full answers in
-detections.data["response"]. People are selected by default; change class IDs
+detections.data["response"] and padded, image-clipped boxes used for annotation.
+Invalid crop regions are dropped. People are selected by default; change class IDs
 and the prompt for other subjects and tasks. Qwen runs locally with Transformers.
 
 Run from the repository root (see docs/recipes/detect_and_describe.md for setup):
@@ -66,81 +67,6 @@ def build_prompt(prompt: str) -> str:
     if not prompt.strip():
         raise ValueError("A non-empty task prompt is required.")
     return f"Task:\n{prompt.strip()}\n\n{RESPONSE_INSTRUCTIONS}"
-
-
-@Operator
-class PadBoxes:
-    """Expand separate crop boxes, preserving the original detections.
-
-    Padding is a fraction of each box's width/height on each side. This step
-    does not need an image or constrain coordinates to image boundaries.
-    """
-
-    def __init__(self, padding: float = 0.05) -> None:
-        if not np.isfinite(padding) or padding < 0:
-            raise ValueError("padding must be finite and non-negative.")
-        self.padding = padding
-
-    def __call__(
-        self,
-        detections: sv.Detections,
-    ) -> tuple[sv.Detections, npt.NDArray[np.float64]]:
-        boxes = detections.xyxy.astype(np.float64, copy=True)
-        padding = (boxes[:, 2:] - boxes[:, :2]) * self.padding
-        boxes[:, :2] -= padding
-        boxes[:, 2:] += padding
-        return detections, boxes
-
-
-@Operator
-class ClipBoxes:
-    """Clip crop boxes to the image and drop unusable boxes with their detections.
-
-    This step also works without padding: pass detections.xyxy as crop_boxes.
-    Original detection coordinates remain unchanged for annotation.
-    """
-
-    def __call__(
-        self,
-        image: npt.NDArray[np.uint8],
-        detections: sv.Detections,
-        crop_boxes: npt.NDArray[np.number],
-    ) -> tuple[npt.NDArray[np.uint8], sv.Detections, npt.NDArray[np.number]]:
-        if crop_boxes.shape != (len(detections), 4):
-            raise ValueError("Each detection must have exactly one crop box.")
-        height, width = image.shape[:2]
-        boxes = sv.clip_boxes(crop_boxes, resolution_wh=(width, height))
-        keep = (
-            np.isfinite(crop_boxes).all(axis=1)
-            & (boxes[:, 2] > boxes[:, 0])
-            & (boxes[:, 3] > boxes[:, 1])
-        )
-        return image, detections[keep], boxes[keep]
-
-
-@Operator
-class CropDetections:
-    """Slice prepared in-bounds boxes into independent BGR image payloads.
-
-    Expects finite, non-empty crop boxes from ClipBoxes (or equivalent input).
-    This step performs no padding or clipping. Fractional edges are rounded
-    outward so the crop includes the whole prepared box.
-    """
-
-    def __call__(
-        self,
-        image: npt.NDArray[np.uint8],
-        detections: sv.Detections,
-        crop_boxes: npt.NDArray[np.number],
-    ) -> tuple[sv.Detections, list[ImagePayload]]:
-        if crop_boxes.shape != (len(detections), 4):
-            raise ValueError("Each detection must have exactly one crop box.")
-        crops = []
-        for x1, y1, x2, y2 in crop_boxes:
-            left, top = int(np.floor(x1)), int(np.floor(y1))
-            right, bottom = int(np.ceil(x2)), int(np.ceil(y2))
-            crops.append(ImagePayload(array=image[top:bottom, left:right].copy()))
-        return detections, crops
 
 
 @Operator
@@ -216,15 +142,15 @@ def build_pipeline(
             Detections.Filter(lambda detections: np.isin(detections.class_id, class_ids)),
             Detections.Filter(lambda detections: detections.confidence >= confidence),
             Detections.NMS(threshold=0.5),
-            PadBoxes(padding=padding),
+            Detections.ScaleBoxes(1 + 2 * padding),
             Recall("source_image", prepend=True),
-            ClipBoxes(),
-            CropDetections(),
+            Detections.ClipBoxes(rounding="outward", invalid="drop"),
+            Detections.Crop(),
             Store("detections", source=0),
             Pick(1),
             Scatter(max_concurrency=1),
             LimitCropSize(max_size=crop_size),
-            Pick(0),  # Discard the crop resize transform; source boxes stay unchanged.
+            Pick(0),  # Discard the crop resize transform; keep the image-space ROI boxes.
             ConvertColorSpace(output_color_space="RGB"),
             LocalQwen3VL(
                 prompt=prepared_prompt, model_id=qwen_model_id,

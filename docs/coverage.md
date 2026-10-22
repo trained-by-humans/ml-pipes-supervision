@@ -58,7 +58,7 @@ need an ml-pipes counterpart.
 | `dataset` | Function | `get_coco_class_index_mapping` | None |
 | `detection` | Component | `CompactMask` | AS-IS (`Data`); `Detections.FromInference()` |
 | `detection` | Component | `CSVSink` | AS-IS (`Utility`) |
-| `detection` | Component | `Detections` | AS-IS (`Data`); `Detections.FromInference()`, `Detections.FromUltralytics()`, `Detections.Filter()`, `Detections.NMS()`, `Detections.NMM()` |
+| `detection` | Component | `Detections` | AS-IS (`Data`); `Detections.FromInference()`, `Detections.FromUltralytics()`, `Detections.Filter()`, `Detections.NMS()`, `Detections.NMM()`, `Detections.Merge()` |
 | `detection` | Component | `DetectionsSmoother` | `DetectionsSmoother` |
 | `detection` | Component | `InferenceSlicer` | `ml_pipes.vision.Tile()` + `Detections.Stitch()` |
 | `detection` | Component | `JSONSink` | AS-IS (`Utility`) |
@@ -80,7 +80,7 @@ need an ml-pipes counterpart.
 | `detection` | Function | `box_non_max_suppression` | None |
 | `detection` | Function | `box_soft_non_max_suppression` | None |
 | `detection` | Function | `calculate_masks_centroids` | None |
-| `detection` | Function | `clip_boxes` | None |
+| `detection` | Function | `clip_boxes` | `Detections.ClipBoxes()` |
 | `detection` | Function | `contains_holes` | None |
 | `detection` | Function | `contains_multiple_segments` | None |
 | `detection` | Function | `denormalize_boxes` | None |
@@ -97,16 +97,16 @@ need an ml-pipes counterpart.
 | `detection` | Function | `mask_to_rle` | None |
 | `detection` | Function | `mask_to_roi` | None |
 | `detection` | Function | `mask_to_xyxy` | None |
-| `detection` | Function | `move_boxes` | None |
+| `detection` | Function | `move_boxes` | `Detections.MoveBoxes(offset)` |
 | `detection` | Function | `move_masks` | None |
 | `detection` | Function | `oriented_box_iou_batch` | None |
 | `detection` | Function | `oriented_box_non_max_merge` | None |
 | `detection` | Function | `oriented_box_non_max_suppression` | None |
-| `detection` | Function | `pad_boxes` | None |
+| `detection` | Function | `pad_boxes` | `Detections.PadBoxes(px, py=None)` |
 | `detection` | Function | `polygon_to_mask` | None |
 | `detection` | Function | `polygon_to_xyxy` | None |
 | `detection` | Function | `rle_to_mask` | None |
-| `detection` | Function | `scale_boxes` | None |
+| `detection` | Function | `scale_boxes` | `Detections.ScaleBoxes(factor_x, factor_y=None)` |
 | `detection` | Function | `xcycwh_to_xyxy` | None |
 | `detection` | Function | `xywh_to_xyxy` | None |
 | `detection` | Function | `xyxy_to_mask` | None |
@@ -145,7 +145,7 @@ need an ml-pipes counterpart.
 | `utils` | Component | `ImageWindow` | `ImageWindow` |
 | `utils` | Component | `VideoInfo` | AS-IS (`Data`) |
 | `utils` | Component | `VideoSink` | AS-IS (`Utility`) |
-| `utils` | Function | `crop_image` | None |
+| `utils` | Function | `crop_image` | `Detections.Crop()` |
 | `utils` | Function | `cv2_to_pillow` | None |
 | `utils` | Function | `get_image_resolution_wh` | None |
 | `utils` | Function | `get_video_frames_generator` | AS-IS (`Utility`) |
