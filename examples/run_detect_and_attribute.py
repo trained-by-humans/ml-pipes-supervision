@@ -36,10 +36,8 @@ if __package__:
     from .qwen_local import LocalQwen3VL, require_local_qwen
     from .run_detect_and_describe import (
         DEFAULT_CLASS_IDS,
-        DEFAULT_CROP_SIZE,
         DEFAULT_DETECTION_MODEL_ID,
         DEFAULT_IMAGE_ASSET,
-        LimitCropSize,
         build_prompt,
     )
 else:
@@ -48,10 +46,8 @@ else:
     from qwen_local import LocalQwen3VL, require_local_qwen
     from run_detect_and_describe import (
         DEFAULT_CLASS_IDS,
-        DEFAULT_CROP_SIZE,
         DEFAULT_DETECTION_MODEL_ID,
         DEFAULT_IMAGE_ASSET,
-        LimitCropSize,
         build_prompt,
     )
 
@@ -271,7 +267,6 @@ def build_pipeline(
     qwen_model_id: str = DEFAULT_QWEN_MODEL_ID,
     device: str = "cpu",
     max_tokens: int = 256,
-    crop_size: int = DEFAULT_CROP_SIZE,
     api_key: str | None = None,
 ) -> Pipeline[str | Path, tuple[npt.NDArray[np.uint8], sv.Detections]]:
     """Detect, assign a supplied label with local Qwen, annotate, and display."""
@@ -282,8 +277,6 @@ def build_pipeline(
         raise ValueError("confidence must be between 0 and 1.")
     if not np.isfinite(padding) or padding < 0:
         raise ValueError("padding must be finite and non-negative.")
-    if not isinstance(crop_size, int) or isinstance(crop_size, bool) or crop_size < 1:
-        raise ValueError("crop_size must be a positive integer.")
     if not isinstance(max_tokens, int) or isinstance(max_tokens, bool) or max_tokens < 1:
         raise ValueError("max_tokens must be a positive integer.")
     prepared_prompt = build_attribute_prompt(attribute, labels)
@@ -306,8 +299,6 @@ def build_pipeline(
             Store("detections", source=0),
             Pick(1),
             Scatter(max_concurrency=1),
-            LimitCropSize(max_size=crop_size),
-            Pick(0),  # Discard the crop transform; keep the image-space ROI boxes.
             ConvertColorSpace(output_color_space="RGB"),
             LocalQwen3VL(
                 prompt=prepared_prompt, model_id=qwen_model_id,
@@ -355,10 +346,6 @@ def main() -> int:
     )
     parser.add_argument("--device", default="cpu", help="Local Qwen device: cpu (default), mps, cuda, or cuda:N.")
     parser.add_argument("--max-tokens", type=int, default=256, help="Maximum generated answer tokens (default: 256).")
-    parser.add_argument(
-        "--crop-size", type=int, default=DEFAULT_CROP_SIZE,
-        help="Maximum crop edge (default: 1024); downscale only, without borders or upscaling.",
-    )
     parser.add_argument("--api-key", help="Optional Roboflow key for detection; ROBOFLOW_API_KEY also works.")
     args = parser.parse_args()
     require_local_qwen()
@@ -369,7 +356,7 @@ def main() -> int:
         detection_model_id=args.detection_model_id, class_ids=tuple(args.class_ids),
         confidence=args.confidence, padding=args.padding,
         qwen_model_id=args.qwen_model_id, device=args.device, max_tokens=args.max_tokens,
-        crop_size=args.crop_size, api_key=args.api_key,
+        api_key=args.api_key,
     )
     pipeline.validate()
     annotated_image, detections = pipeline(input_path)

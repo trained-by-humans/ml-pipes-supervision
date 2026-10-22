@@ -10,10 +10,10 @@ import numpy as np
 import pytest
 import supervision as sv
 
-from ml_pipes.standard import Pick, Scatter
+from ml_pipes.standard import Scatter
 from ml_pipes.supervision import Detections, ImageToArray
 from examples.qwen_local import INSTALL_COMMAND, LocalQwen3VL, require_local_qwen
-from ml_pipes.vision import ConvertColorSpace, ImagePayload, Resize
+from ml_pipes.vision import ConvertColorSpace, ImagePayload
 
 
 @pytest.fixture
@@ -219,14 +219,14 @@ def test_builder_constructs_qwen_inline_from_configuration(example_models):
 
 
 @pytest.mark.parametrize("api_key", [None, "test-key"])
-def test_detector_credentials_and_crop_size_are_forwarded(
+def test_detector_credentials_are_forwarded_and_crops_keep_source_resolution(
     example_models, source_image, api_key,
 ):
     example, detector, detector_factory, generate, qwen_factory = example_models
     detector.infer.return_value = response([prediction()])
     pipeline = example.build_pipeline(
         detection_model_id="custom-detector", api_key=api_key,
-        confidence=0.7, crop_size=16, padding=0,
+        confidence=0.7, padding=0,
     )
     pipeline.validate()
 
@@ -240,9 +240,8 @@ def test_detector_credentials_and_crop_size_are_forwarded(
     assert "api_key" not in qwen_factory.call_args.kwargs
     crop = generate.call_args.args[0]
     assert crop.color_space == "RGB"
-    assert crop.array.shape == (16, 8, 3)
-    expected_crop = cv2.resize(source_image[1][20:60, 10:30], (8, 16), interpolation=cv2.INTER_AREA)
-    np.testing.assert_array_equal(crop.array, expected_crop[..., ::-1])
+    assert crop.array.shape == (40, 20, 3)
+    np.testing.assert_array_equal(crop.array, source_image[1][20:60, 10:30, ::-1])
     np.testing.assert_array_equal(detections.xyxy, [[10, 20, 30, 60]])
 
 
@@ -286,10 +285,6 @@ def test_task_prompt_has_shared_grounding_and_annotation_format(example_models):
     ({"class_ids": ()}, "At least one class ID"),
     ({"confidence": 1.1}, "between 0 and 1"),
     ({"max_tokens": 0}, "positive integer"),
-    ({"crop_size": 0}, "positive integer"),
-    ({"crop_size": -1}, "positive integer"),
-    ({"crop_size": 1.5}, "positive integer"),
-    ({"crop_size": True}, "positive integer"),
 ])
 def test_invalid_options_fail_before_loading_models(example_models, options, message):
     example, _, detector_factory, _, qwen_factory = example_models
@@ -301,89 +296,16 @@ def test_invalid_options_fail_before_loading_models(example_models, options, mes
     qwen_factory.assert_not_called()
 
 
-def test_resize_is_an_explicit_step_between_scatter_and_qwen(example_models):
+def test_scattered_crops_go_directly_through_rgb_conversion_to_qwen(example_models):
     example, *_ = example_models
     pipeline = example.build_pipeline()
     operators = pipeline.operators
-    index = next(i for i, op in enumerate(operators) if isinstance(op, example.LimitCropSize))
-    resize = operators[index]
-
-    assert isinstance(operators[index - 1], Scatter)
-    assert resize.max_size == 1024
-    assert isinstance(operators[index + 1], Pick)
-    assert operators[index + 1].indices == (0,)
-    assert isinstance(operators[index + 2], ConvertColorSpace)
-    assert operators[index + 2].output_color_space == "RGB"
-    assert isinstance(operators[index + 3], LocalQwen3VL)
+    index = next(i for i, op in enumerate(operators) if isinstance(op, Scatter))
+    assert isinstance(operators[index + 1], ConvertColorSpace)
+    assert operators[index + 1].output_color_space == "RGB"
+    assert isinstance(operators[index + 2], LocalQwen3VL)
     # ImageToArray is used only before detection, not after RGB conversion.
     assert sum(isinstance(op, ImageToArray) for op in operators) == 1
-
-
-@pytest.mark.parametrize("shape", [(12, 6, 3), (6, 12, 3), (32, 16, 3), (32, 32, 3)])
-def test_crop_size_limit_leaves_small_or_exact_size_crops_untouched(example_models, shape, monkeypatch):
-    example, *_ = example_models
-    image = ImagePayload(array=np.zeros(shape, dtype=np.uint8), color_space="RGB")
-    resize = MagicMock()
-    monkeypatch.setattr(example, "Resize", resize)
-
-    prepared, transform = example.LimitCropSize(max_size=32)(image)
-
-    assert prepared is image
-    assert transform.scale == (1.0, 1.0)
-    assert transform.pad == (0.0, 0.0)
-    assert transform.original_shape == transform.resized_shape == shape[:2]
-    resize.assert_not_called()
-
-
-@pytest.mark.parametrize("shape, expected_shape", [
-    ((64, 32, 3), (16, 8, 3)),
-    ((32, 64, 3), (8, 16, 3)),
-    ((64, 64, 3), (16, 16, 3)),
-    ((100, 1, 3), (16, 1, 3)),
-    ((1, 100, 3), (1, 16, 3)),
-])
-@pytest.mark.parametrize("color_space", ["BGR", "RGB"])
-def test_crop_size_limit_delegates_downscaling_to_resize(
-    example_models, shape, expected_shape, color_space, monkeypatch,
-):
-    example, *_ = example_models
-    pixels = np.arange(np.prod(shape), dtype=np.uint8).reshape(shape)
-    original = pixels.copy()
-    image = ImagePayload(array=pixels, color_space=color_space)
-    resize = MagicMock(wraps=Resize)
-    monkeypatch.setattr(example, "Resize", resize)
-
-    prepared, transform = example.LimitCropSize(max_size=16)(image)
-
-    resize.assert_called_once_with(
-        target_size=expected_shape[:2], mode="resize", interpolation="area",
-    )
-    expected = cv2.resize(pixels, expected_shape[1::-1], interpolation=cv2.INTER_AREA)
-    np.testing.assert_array_equal(prepared.array, expected)
-    np.testing.assert_array_equal(image.array, original)
-    assert prepared.color_space == color_space and prepared.layout == "HWC"
-    assert transform.original_shape == shape[:2]
-    assert transform.resized_shape == expected_shape[:2]
-    assert transform.pad == (0.0, 0.0)
-
-
-@pytest.mark.parametrize("max_size", [0, -1, 1.5, True])
-def test_crop_size_limit_rejects_invalid_bounds(example_models, max_size):
-    example, *_ = example_models
-
-    with pytest.raises(ValueError, match="positive integer"):
-        example.LimitCropSize(max_size=max_size)
-
-
-@pytest.mark.parametrize("shape, layout", [
-    ((0, 4, 3), "HWC"), ((4, 0, 3), "HWC"), ((4, 4), "HW"), ((3, 4, 4), "CHW"),
-])
-def test_crop_size_limit_requires_nonempty_hwc_images(example_models, shape, layout):
-    example, *_ = example_models
-    image = ImagePayload(array=np.zeros(shape, dtype=np.uint8), layout=layout)
-
-    with pytest.raises(ValueError, match="non-empty HWC"):
-        example.LimitCropSize()(image)
 
 
 @pytest.mark.parametrize("padding", [0, 0.05, 0.2])
@@ -407,12 +329,9 @@ def test_crop_preparation_uses_public_operators_and_stores_surviving_roi_boxes(e
     assert operators[index + 4].name == "detections"
 
 
-@pytest.mark.parametrize("shape, expected_shape", [
-    ((2048, 1024, 3), (1024, 512, 3)),
-    ((1024, 2048, 3), (512, 1024, 3)),
-])
-def test_large_crops_are_downscaled_before_qwen_without_borders_or_changing_source_boxes(
-    example_models, tmp_path, shape, expected_shape,
+@pytest.mark.parametrize("shape", [(2048, 1024, 3), (1024, 2048, 3)])
+def test_large_crops_keep_source_resolution_before_qwen(
+    example_models, tmp_path, shape,
 ):
     example, detector, _, generate, _ = example_models
     image = np.full(shape, [10, 20, 230], dtype=np.uint8)
@@ -429,8 +348,8 @@ def test_large_crops_are_downscaled_before_qwen_without_borders_or_changing_sour
     assert detections.data["response"].tolist() == ["walking"]
     np.testing.assert_array_equal(detections.xyxy, [[0, 0, width, height]])
     prepared = generate.call_args.args[0].array
-    assert prepared.shape == expected_shape
-    assert np.all(prepared == [230, 20, 10])
+    assert prepared.shape == shape
+    np.testing.assert_array_equal(prepared, image[..., ::-1])
 
 
 @pytest.mark.parametrize("padding, expected", [
@@ -694,11 +613,10 @@ def test_local_branch_explicitly_converts_crops_to_rgb_and_annotates_roi_boxes(
     pipeline = example.build_pipeline(device="cpu", max_tokens=100)
     pipeline.validate()
     ops = pipeline.operators
-    index = next(i for i, op in enumerate(ops) if isinstance(op, example.LimitCropSize))
-    assert isinstance(ops[index + 1], Pick)
-    assert isinstance(ops[index + 2], ConvertColorSpace)
-    assert ops[index + 2].output_color_space == "RGB"
-    assert isinstance(ops[index + 3], LocalQwen3VL)
+    index = next(i for i, op in enumerate(ops) if isinstance(op, Scatter))
+    assert isinstance(ops[index + 1], ConvertColorSpace)
+    assert ops[index + 1].output_color_space == "RGB"
+    assert isinstance(ops[index + 2], LocalQwen3VL)
     label = next(op for op in ops if isinstance(op, example.LabelAnnotator))
     label_spy = MagicMock(wraps=label.annotator.annotate)
     monkeypatch.setattr(label.annotator, "annotate", label_spy)
@@ -749,13 +667,13 @@ def test_cli_uses_local_qwen_with_default_or_custom_model(
     def describe(self, image: ImagePayload) -> str:
         calls.append(self)
         assert image.color_space == "RGB"
-        assert image.array.shape == (32, 16, 3)
+        assert image.array.shape == (44, 22, 3)
         return "casual\nBlue jeans."
 
     monkeypatch.setattr(LocalQwen3VL, "__call__", describe)
     monkeypatch.setattr("sys.argv", [
         "run_detect_and_describe.py", "--input", str(source_image[0]),
-        "--max-tokens", "80", "--crop-size", "32", "--api-key", "test-key", *override,
+        "--max-tokens", "80", "--api-key", "test-key", *override,
     ])
 
     assert example.main() == 0
@@ -768,8 +686,10 @@ def test_cli_uses_local_qwen_with_default_or_custom_model(
     constructor.assert_called_once()
 
 
-@pytest.mark.parametrize("removed_option, value", [("--qwen-backend", "bedrock"), ("--region", "us-east-1")])
-def test_cli_rejects_remote_options_before_loading_models(example_models, monkeypatch, removed_option, value):
+@pytest.mark.parametrize("removed_option, value", [
+    ("--qwen-backend", "bedrock"), ("--region", "us-east-1"), ("--crop-size", "32"),
+])
+def test_cli_rejects_removed_options_before_loading_models(example_models, monkeypatch, removed_option, value):
     example, _, detector_factory, _, constructor = example_models
     monkeypatch.setattr("sys.argv", ["run_detect_and_describe.py", removed_option, value])
 

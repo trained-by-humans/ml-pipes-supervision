@@ -44,11 +44,10 @@ from ml_pipes.supervision import (
     PlotImage,
 )
 from ml_pipes.supervision.inference import RoboflowInference
-from ml_pipes.vision import ConvertColorSpace, Decode, ImagePayload, LoadFile, Resize, ResizeTransform
+from ml_pipes.vision import ConvertColorSpace, Decode, LoadFile
 
 DEFAULT_IMAGE_ASSET = ImageAssets.PEOPLE_WALKING
 DEFAULT_DETECTION_MODEL_ID = "rfdetr-small"
-DEFAULT_CROP_SIZE = 1024
 # Pretrained RF-DETR detection aliases use COCO category ID 1 for person.
 DEFAULT_CLASS_IDS = (1,)
 DEFAULT_PROMPT = "Describe the visible subject's appearance and activity."
@@ -67,29 +66,6 @@ def build_prompt(prompt: str) -> str:
     if not prompt.strip():
         raise ValueError("A non-empty task prompt is required.")
     return f"Task:\n{prompt.strip()}\n\n{RESPONSE_INSTRUCTIONS}"
-
-
-@Operator
-class LimitCropSize:
-    """Downscale oversized crops with ml-pipes Resize; never pad or upscale."""
-
-    def __init__(self, max_size: int = DEFAULT_CROP_SIZE) -> None:
-        if not isinstance(max_size, int) or isinstance(max_size, bool) or max_size < 1:
-            raise ValueError("max_size must be a positive integer.")
-        self.max_size = max_size
-
-    def __call__(self, image: ImagePayload) -> tuple[ImagePayload, ResizeTransform]:
-        if image.layout != "HWC" or image.array.ndim != 3 or min(image.array.shape[:2]) < 1:
-            raise ValueError("LimitCropSize expects a non-empty HWC image.")
-        height, width = image.spatial_shape
-        if max(height, width) <= self.max_size:
-            return image, ResizeTransform(
-                scale=(1.0, 1.0), pad=(0.0, 0.0),
-                original_shape=(height, width), resized_shape=(height, width),
-            )
-        ratio = self.max_size / max(height, width)
-        target = (max(1, round(height * ratio)), max(1, round(width * ratio)))
-        return Resize(target_size=target, mode="resize", interpolation="area")(image)
 
 
 @Operator
@@ -115,7 +91,6 @@ def build_pipeline(
     qwen_model_id: str = DEFAULT_QWEN_MODEL_ID,
     device: str = "cpu",
     max_tokens: int = 256,
-    crop_size: int = DEFAULT_CROP_SIZE,
     api_key: str | None = None,
 ) -> Pipeline[str | Path, tuple[npt.NDArray[np.uint8], sv.Detections]]:
     """Detect, answer a task per crop, annotate first-line labels, and display."""
@@ -125,8 +100,6 @@ def build_pipeline(
         raise ValueError("confidence must be between 0 and 1.")
     if not np.isfinite(padding) or padding < 0:
         raise ValueError("padding must be finite and non-negative.")
-    if not isinstance(crop_size, int) or isinstance(crop_size, bool) or crop_size < 1:
-        raise ValueError("crop_size must be a positive integer.")
     if not isinstance(max_tokens, int) or isinstance(max_tokens, bool) or max_tokens < 1:
         raise ValueError("max_tokens must be a positive integer.")
     prepared_prompt = build_prompt(prompt)
@@ -149,8 +122,6 @@ def build_pipeline(
             Store("detections", source=0),
             Pick(1),
             Scatter(max_concurrency=1),
-            LimitCropSize(max_size=crop_size),
-            Pick(0),  # Discard the crop resize transform; keep the image-space ROI boxes.
             ConvertColorSpace(output_color_space="RGB"),
             LocalQwen3VL(
                 prompt=prepared_prompt, model_id=qwen_model_id,
@@ -194,10 +165,6 @@ def main() -> int:
     )
     parser.add_argument("--device", default="cpu", help="Local Qwen device: cpu (default), mps, cuda, or cuda:N.")
     parser.add_argument("--max-tokens", type=int, default=256, help="Maximum generated answer tokens (default: 256).")
-    parser.add_argument(
-        "--crop-size", type=int, default=DEFAULT_CROP_SIZE,
-        help="Maximum crop edge (default: 1024); downscale only, without borders or upscaling.",
-    )
     parser.add_argument("--api-key", help="Optional Roboflow key for detection; ROBOFLOW_API_KEY also works.")
     parser.add_argument(
         "--prompt", default=DEFAULT_PROMPT,
@@ -216,7 +183,6 @@ def main() -> int:
         qwen_model_id=args.qwen_model_id,
         device=args.device,
         max_tokens=args.max_tokens,
-        crop_size=args.crop_size,
         api_key=args.api_key,
     )
     pipeline.validate()

@@ -44,7 +44,8 @@ It does not filter detections. A separate `Detections.Filter` selects confirmed
 IDs without a response and removes duplicate IDs before description.
 
 For those tracks, the pipeline pads and clips the crop boxes, crops the frame,
-downscales oversized crops, converts them to RGB, and sends them to Qwen.
+converts the source-resolution crops to RGB, and sends them to Qwen. The model
+processor handles resizing, normalization, and patch alignment.
 It uses public `Detections.ScaleBoxes(1 + 2 * padding)`,
 `Detections.ClipBoxes(rounding="outward", invalid="drop")`, and `Detections.Crop`.
 `Store("tracked_detections")` retains original tracked boxes for annotation;
