@@ -1,6 +1,6 @@
 """Track video objects and ask Qwen3-VL about each confirmed track once.
 
-Run from the repository root (see README_track_and_describe.md for setup):
+Run from the repository root:
     python examples/run_track_and_describe.py
     python examples/run_track_and_describe.py --input video.mp4
     python examples/run_track_and_describe.py --device cpu

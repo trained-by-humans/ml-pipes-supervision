@@ -49,11 +49,13 @@ at both bounds, and adds Inference 1.7.4 only to the highest-version profile.
 | `test_exports.py` | Public package imports and exports |
 | `test_core.py` | Detection/image adapters, filtering, stitching, smoothing |
 | `test_attach_data.py` | Single-/multi-field data alignment, nested-value preservation, atomic collision policy, non-mutation, and validated pipelines |
+| `test_transformations.py` | Detection-aware box geometry, rounding/invalid policies, aligned crops, concatenation, and validated pipelines |
 | `test_annotators.py` | Annotator payload preservation and label callbacks |
 | `test_zones.py` | Zone delegation and our tracking-timer logic |
 | `test_views.py` | Display adapter, with only the GUI boundary replaced |
 | `test_inspection.py` | Registration of the Supervision BGR image convention |
 | `test_inference.py` | Model selection, inference options, and image normalization |
+| `examples/test_qwen_local.py` | Example-only local Qwen RGB payload validation, lazy loading, device selection, and generation boundaries |
 | `test_trackers.py` | Tracker construction, updates, frame handling, reset, readers |
 | `test_pipelines.py` | Validated multi-operator flows using real Supervision objects |
 | `examples/` | Behavior implemented in our runnable examples |
@@ -65,6 +67,9 @@ Use autospecced mocks based on real dependency signatures for forwarding tests,
 and a few real-library smoke tests at important integration boundaries. Patch
 model factories/inference, tracker updates, and GUI display rather than requiring
 network credentials, model downloads, or interactive windows.
+Local Qwen unit tests mock its optional runtime modules, so they also run without
+PyTorch/Transformers installed. Example tests exercise real resize/color-conversion
+operators and tracking caches while replacing generation.
 
 Do not reproduce upstream rasterization, association, history-aging, or counting
 regression suites. Edge cases belong here when our code implements the behavior

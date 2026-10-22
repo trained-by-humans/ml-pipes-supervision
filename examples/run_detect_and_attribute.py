@@ -9,7 +9,7 @@ Attribute and label arguments accept 'name: description'; annotations use
 only the selected label name, while Qwen uses the descriptive text in its prompt.
 Unrecognized answers are labeled 'unknown'; CLIP remains available separately.
 
-Run from the repository root (see README_detect_and_attribute.md for setup):
+Run from the repository root:
     python examples/run_detect_and_attribute.py
     python examples/run_detect_and_attribute.py --input photo.jpg --attribute activity --labels walking standing sitting
 """
