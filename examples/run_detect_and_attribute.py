@@ -1,30 +1,27 @@
-"""Detect objects and select a supplied attribute label per crop with local Qwen.
+"""Detect objects and assign multiple visible attributes per crop with local Qwen.
 
-The pipeline returns (annotated_image, detections), with attribute, label, and
-the full model response in detections.data. Annotation uses padded, image-clipped
-boxes; invalid crop regions are dropped. People and the people-walking image
-are selected by default, with fashion-style candidates; change class IDs and
-candidates for other subjects.
-Attribute and label arguments accept 'name: description'; annotations use
-only the selected label name, while Qwen uses the descriptive text in its prompt.
-Unrecognized answers are labeled 'unknown'; CLIP remains available separately.
+One VLM query per crop requests a JSON object. ParseAttributes converts the
+responses to aligned columns named after the attributes, plus the raw response.
+Single-value fields contain label strings; multi-value fields preserve lists.
+Missing or invalid values become 'unknown' (['unknown'] for multi-value fields).
+JSON is requested by the prompt, not enforced through constrained decoding.
+Annotation uses padded, image-clipped boxes; invalid crop regions are dropped.
+The defaults select people and assign fashion style, activity, and accessories.
 
-Run from the repository root:
-    python examples/run_detect_and_attribute.py
-    python examples/run_detect_and_attribute.py --input photo.jpg --attribute activity --labels walking standing sitting
+Run beside the downloaded helper files (or under examples/ in a checkout):
+    python run_detect_and_attribute.py
+    python run_detect_and_attribute.py --input photo.jpg --attributes attributes.json
 """
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 from dataclasses import dataclass
-from importlib.metadata import version
 import json
 from pathlib import Path
-import sys
 from typing import Any
 
 import cv2
-from inference.core.env import CLIP_MAX_BATCH_SIZE
 import numpy as np
 import numpy.typing as npt
 import supervision as sv
@@ -38,7 +35,6 @@ if __package__:
         DEFAULT_CLASS_IDS,
         DEFAULT_DETECTION_MODEL_ID,
         DEFAULT_IMAGE_ASSET,
-        build_prompt,
     )
 else:
     from common import ASSETS_DIR
@@ -48,29 +44,20 @@ else:
         DEFAULT_CLASS_IDS,
         DEFAULT_DETECTION_MODEL_ID,
         DEFAULT_IMAGE_ASSET,
-        build_prompt,
     )
 
 from ml_pipes.core import Pipeline
 from ml_pipes.operator import Operator
 from ml_pipes.standard import Gather, Pick, Recall, Scatter, Select, Store
 from ml_pipes.supervision import BoxAnnotator, Detections, ImageToArray, LabelAnnotator, PlotImage
-from ml_pipes.supervision import inference as inference_ops
 from ml_pipes.supervision.inference import RoboflowInference
 from ml_pipes.vision import ConvertColorSpace, Decode, LoadFile
-
-DEFAULT_CLIP_MODEL_ID = "clip/ViT-B-32"
-CLIP_INSTALL_COMMAND = f'python -m pip install "inference[clip]=={version("inference")}"'
-DEFAULT_ATTRIBUTE = "fashion style: overall visual style of the outfit"
-DEFAULT_LABELS = (
-    "casual: relaxed everyday clothing",
-    "formal: office attire, such as a suit or dress shirt",
-    "sportswear: athletic clothing, such as shorts or a windbreaker",
-)
 
 
 def parse_named_text(value: str, kind: str) -> tuple[str, str]:
     """Split the first colon into a result name and optional matching text."""
+    if not isinstance(value, str):
+        raise ValueError(f"Each {kind} must be a string.")
     name, separator, description = value.partition(":")
     name = name.strip()
     if not name:
@@ -81,160 +68,172 @@ def parse_named_text(value: str, kind: str) -> tuple[str, str]:
     return name, text
 
 
-def prepare_candidates(attribute: str, labels: tuple[str, ...]) -> tuple[str, tuple[str, ...]]:
-    """Validate names/descriptions without loading models or discarding text."""
-    attribute = attribute.strip()
-    parse_named_text(attribute, "attribute")
-    if isinstance(labels, str) or not labels:
-        raise ValueError("At least one candidate label is required.")
-    labels = tuple(label.strip() for label in labels)
-    names = [parse_named_text(label, "candidate label")[0] for label in labels]
-    if len(set(names)) != len(names):
-        raise ValueError("Candidate labels must be unique.")
-    return attribute, labels
+@dataclass(frozen=True)
+class Attribute:
+    """Example-only attribute configuration, not a package operator.
+
+    Labels accept 'name: description'. ``multiple=True`` requests a list of
+    labels, with [] meaning none visible and ['unknown'] meaning indeterminate.
+    """
+
+    labels: tuple[str, ...]
+    description: str = ""
+    multiple: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.labels, (tuple, list)) or not self.labels:
+            raise ValueError("At least one candidate label is required.")
+        names = [parse_named_text(label, "candidate label")[0] for label in self.labels]
+        if len(set(names)) != len(names):
+            raise ValueError("Candidate labels must be unique.")
+        if not isinstance(self.description, str):
+            raise ValueError("Attribute description must be a string.")
+        if not isinstance(self.multiple, bool):
+            raise ValueError("multiple must be a bool.")
+        object.__setattr__(self, "labels", tuple(label.strip() for label in self.labels))
+        object.__setattr__(self, "description", self.description.strip())
 
 
-def build_attribute_prompt(attribute: str, labels: tuple[str, ...]) -> str:
-    """Give Qwen the label names and descriptions, separate from output parsing."""
-    attribute, labels = prepare_candidates(attribute, labels)
-    name, description = parse_named_text(attribute, "attribute")
-    candidates = [
-        {"name": label_name, "description": label_description}
-        for label_name, label_description in (
-            parse_named_text(label, "candidate label") for label in labels
-        )
-    ]
-    return build_prompt(
-        "Assign the requested attribute to the visible subject in this image crop.\n"
-        f"Attribute: {json.dumps({'name': name, 'description': description}, ensure_ascii=False)}\n"
-        f"Allowed labels: {json.dumps(candidates, ensure_ascii=False)}\n"
-        "Choose one supplied label name and copy it exactly onto the first line, "
-        "without quotes, prefixes, or the label description. Do not invent labels. "
-        "If none is supported by visible evidence, answer 'unknown'."
+DEFAULT_ATTRIBUTES = {
+    "fashion_style": Attribute(
+        description="Overall visual style of the outfit",
+        labels=(
+            "casual: relaxed everyday clothing",
+            "formal: office attire, such as a suit or dress shirt",
+            "sportswear: athletic clothing, such as shorts or a windbreaker",
+        ),
+    ),
+    "activity": Attribute(
+        description="Visible body posture or movement",
+        labels=("walking: moving on foot", "standing: upright and stationary", "sitting: seated"),
+    ),
+    "accessories": Attribute(
+        labels=("backpack", "shoulder_bag", "handbag", "shopping_bag", "hat", "glasses", "phone"),
+        multiple=True,
+    ),
+}
+
+
+def prepare_attributes(attributes: Mapping[str, Attribute]) -> dict[str, Attribute]:
+    """Validate output field names before loading any models."""
+    if not isinstance(attributes, Mapping) or not attributes:
+        raise ValueError("At least one attribute is required.")
+    for name, attribute in attributes.items():
+        if not isinstance(name, str) or not name.strip() or name != name.strip():
+            raise ValueError("Attribute names must be non-empty strings without surrounding whitespace.")
+        if name == "response":
+            raise ValueError("'response' is reserved for raw model responses.")
+        if not isinstance(attribute, Attribute):
+            raise ValueError("Each attribute must be an Attribute configuration.")
+    return dict(attributes)
+
+
+def build_attribute_prompt(attributes: Mapping[str, Attribute]) -> str:
+    """Request one JSON object per subject; generation remains unconstrained."""
+    attributes = prepare_attributes(attributes)
+    specifications = {
+        name: {
+            "description": attribute.description or name,
+            "multiple": attribute.multiple,
+            "labels": [
+                {"name": label_name, "description": label_description}
+                for label_name, label_description in (
+                    parse_named_text(label, "candidate label") for label in attribute.labels
+                )
+            ],
+        }
+        for name, attribute in attributes.items()
+    }
+    example = {
+        name: ["unknown"] if attribute.multiple else "unknown"
+        for name, attribute in attributes.items()
+    }
+    return (
+        "Assign every requested attribute to the visible subject centered in this image crop.\n"
+        f"Attributes: {json.dumps(specifications, ensure_ascii=False)}\n"
+        "Return exactly one JSON object using the attribute names as keys. "
+        "For each multiple=false attribute, return one exact supplied label name as a string. "
+        "For each multiple=true attribute, return an array of all visibly supported label names; "
+        "use [] only when no listed items are visible. Do not invent label names or return descriptions. "
+        "Use 'unknown' for an indeterminate single value, or ['unknown'] for an indeterminate array. "
+        "Assess each attribute independently. Use only visible evidence, ignore neighboring people, "
+        "and do not guess hidden personal attributes from appearance. "
+        "If the crop is too small, blurry, or obscured, use the unknown value for affected attributes. "
+        "Do not add markdown, commentary, or other keys.\n"
+        f"JSON shape (replace unknown values with supported labels): {json.dumps(example)}"
     )
 
 
-@dataclass(frozen=True)
-class Classification:
-    label: str
-    similarity: float
-
-
-def _load_clip_dependencies() -> None:
-    """Check CLIP's backend without loading weights or affecting Qwen usage."""
-    try:
-        from inference.models.clip import Clip
-    except ImportError as error:
-        raise ImportError(
-            "CLIPClassify requires the optional Roboflow Inference CLIP dependencies. "
-            f"A required dependency is missing or incompatible: {error}\n"
-            f"Install them first with: {CLIP_INSTALL_COMMAND}"
-        ) from error
-
-
-def require_clip() -> None:
-    """Check an explicit CLIP experiment's dependencies with a clean CLI exit."""
-    try:
-        _load_clip_dependencies()
-    except ImportError as error:
-        print(error, file=sys.stderr)
-        raise SystemExit(1) from None
-
-
-def unit_embeddings(embeddings: npt.ArrayLike, rows: int) -> npt.NDArray[np.float64]:
-    """Validate model output and normalize vectors for cosine similarity."""
-    vectors = np.asarray(embeddings, dtype=np.float64)
-    if vectors.ndim != 2 or vectors.shape[0] != rows or vectors.shape[1] == 0:
-        raise ValueError("CLIP must return one non-empty embedding vector per input.")
-    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
-    if not np.isfinite(vectors).all() or not np.isfinite(norms).all() or np.any(norms == 0):
-        raise ValueError("CLIP embeddings must be finite and non-zero.")
-    return vectors / norms
+def unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject duplicate JSON keys instead of silently accepting the last value."""
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate JSON key: {key}")
+        result[key] = value
+    return result
 
 
 @Operator
-class CLIPClassify:
-    """Select a candidate by cosine similarity using Roboflow Inference CLIP.
+class ParseAttributes:
+    """Turn ordered JSON responses into named, aligned detection-data columns.
 
-    The model and normalized candidate text embeddings are cached on first use.
-    BGR arrays are passed unchanged to Roboflow Inference, whose model
-    preprocessing handles BGR-to-RGB conversion.
-    Native CLIP preprocessing handles image normalization; any additional crop
-    resizing belongs in the pipeline. Scores are not calibrated probabilities.
-    Install CLIP separately; missing backend dependencies raise an actionable
-    ImportError on first use. CLI experiments can call require_clip() upfront.
+    Missing/invalid fields become unknown independently. Malformed JSON or
+    duplicate keys make the entire row unknown. Extra fields are ignored.
+    Multi-value lists retain their order and nesting. Raw responses are retained.
     """
 
-    def __init__(
-        self,
-        attribute: str,
-        labels: tuple[str, ...],
-        *,
-        model_id: str = DEFAULT_CLIP_MODEL_ID,
-        api_key: str | None = None,
-    ) -> None:
-        attribute, labels = prepare_candidates(attribute, labels)
-        self.attribute, attribute_text = parse_named_text(attribute, "attribute")
-        candidates = [parse_named_text(label, "candidate label") for label in labels]
-        self.labels = tuple(name for name, _ in candidates)
-        self.prompts = tuple(
-            f"A photo of a subject. {attribute_text}: {text}." for _, text in candidates
-        )
-        self.model_id = model_id
-        self.api_key = api_key
-        self._model: Any | None = None
-        self._text_embeddings: npt.NDArray[np.float64] | None = None
-
-    def __call__(self, image: npt.NDArray[np.uint8]) -> Classification:
-        if image.ndim != 3 or image.shape[2] != 3 or image.dtype != np.uint8 or image.size == 0:
-            raise ValueError("CLIPClassify expects a non-empty BGR HWC uint8 image.")
-        if self._model is None:
-            _load_clip_dependencies()
-            kwargs = {"model_id": self.model_id}
-            if self.api_key:
-                kwargs["api_key"] = self.api_key
-            self._model = inference_ops.get_model(**kwargs)
-        if self._text_embeddings is None:
-            batches = []
-            for start in range(0, len(self.prompts), CLIP_MAX_BATCH_SIZE):
-                prompts = list(self.prompts[start:start + CLIP_MAX_BATCH_SIZE])
-                batches.append(unit_embeddings(self._model.embed_text(prompts), rows=len(prompts)))
-            self._text_embeddings = np.concatenate(batches, axis=0)
-
-        image_embeddings = unit_embeddings(self._model.embed_image(image), rows=1)
-        if image_embeddings.shape[1] != self._text_embeddings.shape[1]:
-            raise ValueError("CLIP image and text embeddings must have the same dimensions.")
-        similarities = self._text_embeddings @ image_embeddings[0]
-        best = int(np.argmax(similarities))
-        return Classification(self.labels[best], float(np.clip(similarities[best], -1, 1)))
-
-
-@Operator
-class ParseAttributeLabels:
-    """Parse crop responses into aligned data fields without accessing detections."""
-
-    def __init__(self, attribute: str, labels: tuple[str, ...]) -> None:
-        attribute, labels = prepare_candidates(attribute, labels)
-        self.attribute, _ = parse_named_text(attribute, "attribute")
-        self.labels = {parse_named_text(label, "candidate label")[0] for label in labels}
-
-    def __call__(self, responses: list[str]) -> dict[str, list[str]]:
-        labels = []
-        for response in responses:
-            first_line = response.strip().splitlines()[0] if response.strip() else ""
-            label = first_line.strip()
-            labels.append(label if label in self.labels else "unknown")
-        return {
-            "attribute": [self.attribute] * len(responses),
-            "label": labels,
-            "response": responses,
+    def __init__(self, attributes: Mapping[str, Attribute]) -> None:
+        self.attributes = prepare_attributes(attributes)
+        self.labels = {
+            name: {parse_named_text(label, "candidate label")[0] for label in attribute.labels}
+            for name, attribute in self.attributes.items()
         }
+
+    def __call__(self, responses: list[str]) -> dict[str, list[Any]]:
+        fields: dict[str, list[Any]] = {name: [] for name in self.attributes}
+        for response in responses:
+            text = response.strip()
+            if text.startswith("```") and text.endswith("```"):
+                lines = text.splitlines()
+                if lines[0].strip() in ("```", "```json"):
+                    text = "\n".join(lines[1:-1])
+            try:
+                payload = json.loads(text, object_pairs_hook=unique_json_object)
+                if not isinstance(payload, dict):
+                    payload = {}
+            except ValueError:
+                payload = {}
+            for name, attribute in self.attributes.items():
+                value = payload.get(name)
+                allowed = self.labels[name] | {"unknown"}
+                if attribute.multiple:
+                    valid = isinstance(value, list) and all(
+                        isinstance(item, str) and item in allowed for item in value
+                    ) and ("unknown" not in value or value == ["unknown"])
+                    fields[name].append(value if valid else ["unknown"])
+                else:
+                    fields[name].append(value if isinstance(value, str) and value in allowed else "unknown")
+        fields["response"] = responses
+        return fields
+
+
+def format_attributes(data: Mapping[str, Any], attributes: Mapping[str, Attribute]) -> str:
+    """Compose an annotation without flattening stored multi-value data."""
+    parts = []
+    for name in attributes:
+        value = data[name]
+        if isinstance(value, list):
+            text = ", ".join(value) if value else "none"
+        else:
+            text = str(value)
+        parts.append(text if len(attributes) == 1 else f"{name}: {text}")
+    return " | ".join(parts)
 
 
 def build_pipeline(
     *,
-    attribute: str = DEFAULT_ATTRIBUTE,
-    labels: tuple[str, ...] = DEFAULT_LABELS,
+    attributes: Mapping[str, Attribute] | None = None,
     detection_model_id: str = DEFAULT_DETECTION_MODEL_ID,
     class_ids: tuple[int, ...] = DEFAULT_CLASS_IDS,
     confidence: float = 0.5,
@@ -244,8 +243,8 @@ def build_pipeline(
     max_tokens: int = 256,
     api_key: str | None = None,
 ) -> Pipeline[str | Path, tuple[npt.NDArray[np.uint8], sv.Detections]]:
-    """Detect, assign a supplied label with local Qwen, annotate, and display."""
-    attribute, labels = prepare_candidates(attribute, labels)
+    """Detect, query all attributes once per crop, parse, attach, and annotate."""
+    attributes = prepare_attributes(DEFAULT_ATTRIBUTES if attributes is None else attributes)
     if not class_ids:
         raise ValueError("At least one class ID is required.")
     if not 0 <= confidence <= 1:
@@ -254,7 +253,6 @@ def build_pipeline(
         raise ValueError("padding must be finite and non-negative.")
     if not isinstance(max_tokens, int) or isinstance(max_tokens, bool) or max_tokens < 1:
         raise ValueError("max_tokens must be a positive integer.")
-    prepared_prompt = build_attribute_prompt(attribute, labels)
     return Pipeline(
         [
             LoadFile(),
@@ -276,17 +274,18 @@ def build_pipeline(
             Scatter(max_concurrency=1),
             ConvertColorSpace(output_color_space="RGB"),
             LocalQwen3VL(
-                prompt=prepared_prompt, model_id=qwen_model_id,
+                prompt=build_attribute_prompt(attributes), model_id=qwen_model_id,
                 device=device, max_tokens=max_tokens,
             ),
             Gather(),
-            ParseAttributeLabels(attribute=attribute, labels=labels),
+            ParseAttributes(attributes),
             Recall("detections", prepend=True),
             Detections.AttachData(),
             Recall("source_image", prepend=True),
             BoxAnnotator(),
             LabelAnnotator(
-                label_formatter=lambda detection: detection.data["label"],
+                label_formatter=lambda detection: format_attributes(detection.data, attributes),
+                smart_position=True, max_line_length=40,
             ),
             PlotImage(at=0),
         ],
@@ -301,14 +300,8 @@ def main() -> int:
         help="Source image path. Defaults to Supervision's PEOPLE_WALKING sample (downloaded if missing).",
     )
     parser.add_argument(
-        "--attribute", default=DEFAULT_ATTRIBUTE, metavar="NAME[: DESCRIPTION]",
-        help="Attribute name, optionally followed by ':' and a description; quote the entire argument. "
-             f"Default: {DEFAULT_ATTRIBUTE}.",
-    )
-    parser.add_argument(
-        "--labels", nargs="+", default=DEFAULT_LABELS, metavar="LABEL[: DESCRIPTION]",
-        help="Candidate labels with optional descriptions; quote each item, without separating commas. "
-             f"Default: {'; '.join(DEFAULT_LABELS)}.",
+        "--attributes", type=Path, metavar="CONFIG.json",
+        help="JSON mapping attribute names to labels, description, and multiple (default: fashion_style, activity, accessories).",
     )
     parser.add_argument("--output", type=Path, help="Optional JSON result path.")
     parser.add_argument("--output-image", type=Path, help="Optional annotated image path.")
@@ -324,11 +317,20 @@ def main() -> int:
     parser.add_argument("--max-tokens", type=int, default=256, help="Maximum generated answer tokens (default: 256).")
     parser.add_argument("--api-key", help="Optional Roboflow key for detection; ROBOFLOW_API_KEY also works.")
     args = parser.parse_args()
+    attributes = DEFAULT_ATTRIBUTES
+    if args.attributes is not None:
+        try:
+            config = json.loads(args.attributes.read_text(encoding="utf-8"), object_pairs_hook=unique_json_object)
+            if not isinstance(config, dict) or not config:
+                raise ValueError("Attribute config must be a non-empty JSON object.")
+            attributes = prepare_attributes({name: Attribute(**options) for name, options in config.items()})
+        except (OSError, TypeError, ValueError) as error:
+            parser.error(str(error))
     require_local_qwen()
     input_path = args.input or Path(download_assets(DEFAULT_IMAGE_ASSET, directory=ASSETS_DIR))
 
     pipeline = build_pipeline(
-        attribute=args.attribute, labels=tuple(args.labels),
+        attributes=attributes,
         detection_model_id=args.detection_model_id, class_ids=tuple(args.class_ids),
         confidence=args.confidence, padding=args.padding,
         qwen_model_id=args.qwen_model_id, device=args.device, max_tokens=args.max_tokens,
@@ -342,8 +344,7 @@ def main() -> int:
             "xyxy": detections.xyxy[index].tolist(),
             "class_id": int(detections.class_id[index]),
             "confidence": float(detections.confidence[index]),
-            "attribute": detections.data["attribute"][index],
-            "label": detections.data["label"][index],
+            "attributes": {name: detections.data[name][index] for name in attributes},
             "response": detections.data["response"][index],
         }
         for index in range(len(detections))

@@ -65,18 +65,6 @@ def test_example_only_qwen_runtime_is_not_declared_as_package_dependencies():
     assert not names.intersection({"transformers", "torch", "pillow"})
 
 
-def test_example_only_clip_runtime_is_not_declared_as_package_dependencies():
-    with PROJECT.open("rb") as stream:
-        project = tomllib.load(stream)["project"]
-
-    extras = project["optional-dependencies"]
-    assert "clip" not in extras
-    requirements = project["dependencies"] + [value for values in extras.values() for value in values]
-    parsed = [Requirement(value) for value in requirements]
-    assert all("clip" not in requirement.extras for requirement in parsed)
-    assert not {requirement.name.lower() for requirement in parsed}.intersection({"clip", "rf-clip"})
-
-
 def test_bedrock_runtime_is_not_declared_as_package_dependencies():
     with PROJECT.open("rb") as stream:
         project = tomllib.load(stream)["project"]

@@ -252,7 +252,7 @@ def test_attribute_and_description_keep_matching_pipeline_stages(example_models)
     description_steps = example.build_pipeline().operators
 
     assert len(classification_steps) == len(description_steps) + 1
-    parser = next(op for op in classification_steps if isinstance(op, classify.ParseAttributeLabels))
+    parser = next(op for op in classification_steps if isinstance(op, classify.ParseAttributes))
     common_steps = [op for op in classification_steps if op is not parser]
     differences = [
         (type(attribute), type(description))
