@@ -77,6 +77,11 @@
   --recipe-fill: #f9c7df;
 }
 
+.recipe-card--describe {
+  --recipe-accent: #5e0aae;
+  --recipe-fill: #e4d2ff;
+}
+
 .recipe-card__eyebrow,
 .recipe-card__tags {
   color: var(--recipe-accent);

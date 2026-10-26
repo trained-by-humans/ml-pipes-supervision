@@ -1,7 +1,7 @@
 ---
 title: Supervision Pipeline Recipes
 description: >-
-  Explore runnable ml-pipes recipes for face blurring, directional line counts, zero-shot detection, and oriented bounding boxes with Supervision.
+  Explore runnable ml-pipes recipes for face blurring, directional line counts, zero-shot detection, oriented bounding boxes, and vision-language descriptions and attribute labels.
 ---
 
 # Pipeline Recipes
@@ -33,6 +33,20 @@ description: >-
     <span class="recipe-card__title">Oriented Bounding Boxes</span>
     <span class="recipe-card__summary">Detect ships with YOLO11-OBB and render the rotated geometry used for OBB-aware NMS.</span>
     <span class="recipe-card__tags">YOLO11-OBB&nbsp;&nbsp; NMS&nbsp;&nbsp; Annotation</span>
+    <span class="recipe-card__action">Open recipe <span aria-hidden="true">&rarr;</span></span>
+  </a>
+  <a class="recipe-card recipe-card--describe" href="../detect_and_describe/">
+    <span class="recipe-card__eyebrow">Vision and Language</span>
+    <span class="recipe-card__title">Detect and Describe</span>
+    <span class="recipe-card__summary">Detect objects, ask a vision-language model about each one, and annotate its answer.</span>
+    <span class="recipe-card__tags">Detection&nbsp;&nbsp; Visual Q&amp;A&nbsp;&nbsp; Annotation</span>
+    <span class="recipe-card__action">Open recipe <span aria-hidden="true">&rarr;</span></span>
+  </a>
+  <a class="recipe-card recipe-card--describe" href="../detect_and_attribute/">
+    <span class="recipe-card__eyebrow">Visual Attributes</span>
+    <span class="recipe-card__title">Detect and Attribute</span>
+    <span class="recipe-card__summary">Detect subjects, query multiple visual attributes per crop, and attach the parsed results.</span>
+    <span class="recipe-card__tags">Detection&nbsp;&nbsp; Attribute Labels&nbsp;&nbsp; Annotation</span>
     <span class="recipe-card__action">Open recipe <span aria-hidden="true">&rarr;</span></span>
   </a>
 </div>

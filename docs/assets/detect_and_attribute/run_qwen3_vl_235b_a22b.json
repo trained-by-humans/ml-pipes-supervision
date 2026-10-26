@@ -1,0 +1,73 @@
+{
+  "started_at": "2026-10-22T14:31:01.871122+00:00",
+  "source_asset": "ImageAssets.PEOPLE_WALKING",
+  "source_shape": [
+    1080,
+    1920,
+    3
+  ],
+  "source_sha256": "e87f17de40c1565767ea833d758c1e6f5850454621ef18928be082083d672ae8",
+  "detector": "rfdetr-small",
+  "vlm": "qwen.qwen3-vl-235b-a22b",
+  "region": "us-west-2",
+  "attributes": {
+    "fashion_style": {
+      "labels": [
+        "casual: relaxed everyday clothing",
+        "formal: office attire, such as a suit"
+      ],
+      "description": "Overall visual style of the outfit",
+      "multiple": false
+    },
+    "activity": {
+      "labels": [
+        "walking",
+        "standing",
+        "sitting"
+      ],
+      "description": "Visible body posture or movement",
+      "multiple": false
+    },
+    "accessories": {
+      "labels": [
+        "backpack",
+        "shoulder_bag",
+        "handbag",
+        "shopping_bag",
+        "hat",
+        "glasses",
+        "phone"
+      ],
+      "description": "",
+      "multiple": true
+    }
+  },
+  "max_tokens": 256,
+  "padding": 0.05,
+  "confidence": 0.5,
+  "class_ids": [
+    1
+  ],
+  "detection_count": 11,
+  "vlm_query_count": 11,
+  "all_responses_valid_json": true,
+  "all_crop_response_rows_aligned": true,
+  "total_duration_s": 15.113263958999596,
+  "fashion_style_counts": {
+    "casual": 11
+  },
+  "activity_counts": {
+    "walking": 10,
+    "standing": 1
+  },
+  "accessory_counts": {
+    "shoulder_bag": 3,
+    "backpack": 4,
+    "phone": 1,
+    "shopping_bag": 1,
+    "handbag": 1
+  },
+  "annotation_color": "#ff4040",
+  "annotation_color_lookup": "CLASS",
+  "notes": "Actual example pipeline using Qwen3-VL-235B-A22B instead of the local 2B model, and ImageToArray for its BGR input. Fresh model calls, no response cache. Image, responses, report, and trace come from the same pipeline.inspect() invocation. Total measures inspect() wall time including snapshot and final freeze overhead; detector construction, HTML generation, and screenshot rendering are excluded. Child trace durations are per-crop averages. Matplotlib uses Agg; PyTorch uses one thread."
+}

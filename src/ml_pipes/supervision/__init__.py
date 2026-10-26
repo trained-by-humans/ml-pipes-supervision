@@ -36,6 +36,8 @@ from .annotators import (
     TriangleAnnotator,
 )
 from .core import (
+    DetectionsAttachData,
+    DetectionsAttachDataField,
     DetectionsFromInference,
     DetectionsFromTensorRegistry,
     DetectionsFromUltralytics,
@@ -46,6 +48,14 @@ from .core import (
     DetectionsStitch,
     Detection,
     ImageToArray,
+)
+from .transformations import (
+    DetectionsClipBoxes,
+    DetectionsCrop,
+    DetectionsMerge,
+    DetectionsMoveBoxes,
+    DetectionsPadBoxes,
+    DetectionsScaleBoxes,
 )
 from .views import FPSMonitor, ImageWindow, PlotImage
 from .zones import TrackingTimer, TriggerLineZone, TriggerZone
@@ -66,10 +76,18 @@ class Detections:
     FromInference = DetectionsFromInference
     FromTensorRegistry = DetectionsFromTensorRegistry
     FromUltralytics = DetectionsFromUltralytics
+    AttachData = DetectionsAttachData
+    AttachDataField = DetectionsAttachDataField
     Filter = DetectionsFilter
     NMS = DetectionsNMS
     NMM = DetectionsNMM
     Stitch = DetectionsStitch
+    PadBoxes = DetectionsPadBoxes
+    ScaleBoxes = DetectionsScaleBoxes
+    MoveBoxes = DetectionsMoveBoxes
+    ClipBoxes = DetectionsClipBoxes
+    Crop = DetectionsCrop
+    Merge = DetectionsMerge
 
 
 __all__ = [
