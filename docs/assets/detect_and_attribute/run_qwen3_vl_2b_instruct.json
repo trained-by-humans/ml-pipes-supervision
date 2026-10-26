@@ -1,0 +1,94 @@
+{
+  "started_at": "2026-10-23T01:41:29.415632+00:00",
+  "source_asset": "ImageAssets.PEOPLE_WALKING",
+  "source_shape": [
+    1080,
+    1920,
+    3
+  ],
+  "source_sha256": "e87f17de40c1565767ea833d758c1e6f5850454621ef18928be082083d672ae8",
+  "detector": "rfdetr-small",
+  "vlm": "Qwen/Qwen3-VL-2B-Instruct",
+  "model_revision": "89644892e4d85e24eaac8bacfd4f463576704203",
+  "model_loading": "Direct cached snapshot path; no remote metadata lookups",
+  "device": "cpu",
+  "dtype": "float32",
+  "torch_threads": 1,
+  "attributes": {
+    "fashion_style": {
+      "labels": [
+        "casual: relaxed everyday clothing",
+        "formal: office attire, such as a suit"
+      ],
+      "description": "Overall visual style of the outfit",
+      "multiple": false
+    },
+    "activity": {
+      "labels": [
+        "walking",
+        "standing",
+        "sitting"
+      ],
+      "description": "Visible body posture or movement",
+      "multiple": false
+    },
+    "accessories": {
+      "labels": [
+        "backpack",
+        "shoulder_bag",
+        "handbag",
+        "shopping_bag",
+        "hat",
+        "glasses",
+        "phone"
+      ],
+      "description": "",
+      "multiple": true
+    }
+  },
+  "max_tokens": 256,
+  "padding": 0.05,
+  "confidence": 0.5,
+  "class_ids": [
+    1
+  ],
+  "detection_count": 11,
+  "vlm_query_count": 11,
+  "valid_json_object_count": 11,
+  "all_responses_valid_json": true,
+  "all_crop_response_rows_aligned": true,
+  "boxes_identical_to_previous_run": true,
+  "total_duration_s": 168.20322650000162,
+  "fashion_style_counts": {
+    "casual": 11
+  },
+  "activity_counts": {
+    "walking": 10,
+    "standing": 1
+  },
+  "accessory_counts": {
+    "shoulder_bag": 5,
+    "backpack": 6,
+    "phone": 2,
+    "hat": 2,
+    "shopping_bag": 1,
+    "glasses": 4
+  },
+  "unknown_field_counts": {
+    "fashion_style": 0,
+    "activity": 0,
+    "accessories": 0
+  },
+  "annotation_color": "#ff4040",
+  "annotation_color_lookup": "CLASS",
+  "platform": "macOS-15.5-arm64-arm-64bit",
+  "python": "3.12.10",
+  "versions": {
+    "torch": "2.13.0",
+    "transformers": "5.9.0",
+    "inference": "1.3.8",
+    "supervision": "0.30.5",
+    "ml-pipes-core": "0.1.2rc1"
+  },
+  "notes": "Same source image, attribute configuration, detector, crop settings, and annotation as run.json. The only inference change is the default local Qwen3-VL-2B-Instruct adapter with RGB input. CPU float32, sequential calls, one PyTorch thread, default model loaded from its cached snapshot path. First crop includes lazy model loading. All artifacts come from one pipeline.inspect() invocation. Total includes snapshots and final freeze; detector construction, HTML rendering, and screenshot are excluded. Nested timings are per-crop averages. Original artifacts and tutorial links are unchanged."
+}
