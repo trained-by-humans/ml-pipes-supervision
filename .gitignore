@@ -23,14 +23,8 @@ dist/
 # Documentation builds
 site/
 
-# Local-only example notes
-/examples/README_detect_and_attribute.md
-/examples/README_track_and_describe.md
-
 # Downloaded example assets and model weights
 examples/.example_assets/
-# Local-only Bedrock operator; not part of the package or published examples.
-/examples/qwen_bedrock.py
 *.pt
 *.pth
 *.ckpt
