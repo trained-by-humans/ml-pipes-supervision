@@ -331,7 +331,7 @@ def test_crop_preparation_uses_public_operators_and_stores_surviving_roi_boxes(e
     assert operators[index + 1].name == "source_image"
     assert isinstance(operators[index + 2], Detections.ClipBoxes)
     assert operators[index + 2].rounding == "outward"
-    assert operators[index + 2].invalid == "drop"
+    assert operators[index + 2].invalid_policy == "drop"
     assert isinstance(operators[index + 3], Detections.Crop)
     assert operators[index + 4].name == "detections"
 
@@ -391,7 +391,7 @@ def test_clipping_works_without_padding_and_keeps_metadata_aligned(example_model
     )
     original_boxes = detections.xyxy.copy()
 
-    preserved_image, kept = Detections.ClipBoxes(invalid="drop")(image, detections)
+    preserved_image, kept = Detections.ClipBoxes(invalid_policy="drop")(image, detections)
 
     assert preserved_image is image
     assert kept.class_id.tolist() == [0, 1]
@@ -406,7 +406,7 @@ def test_cropping_slices_only_prepared_boxes_without_adding_padding(example_mode
     example, *_ = example_models
     image = np.arange(20 * 30 * 3, dtype=np.uint8).reshape(20, 30, 3)
     detections = sv.Detections(xyxy=np.asarray([[2.25, 3.5, 10.75, 12.25]], dtype=np.float64))
-    clipped_image, clipped = Detections.ClipBoxes(rounding="outward", invalid="drop")(image, detections)
+    clipped_image, clipped = Detections.ClipBoxes(rounding="outward", invalid_policy="drop")(image, detections)
     kept, crops = Detections.Crop()(clipped_image, clipped)
 
     assert kept is clipped
@@ -429,7 +429,7 @@ def test_pad_clip_crop_preserves_alignment_and_returns_prepared_detection_boxes(
     )
 
     prepared = Detections.ScaleBoxes(1.1)(detections)
-    clipped_image, clipped = Detections.ClipBoxes(rounding="outward", invalid="drop")(image, prepared)
+    clipped_image, clipped = Detections.ClipBoxes(rounding="outward", invalid_policy="drop")(image, prepared)
     result, crops = Detections.Crop()(clipped_image, clipped)
 
     assert result.class_id.tolist() == [0, 4]

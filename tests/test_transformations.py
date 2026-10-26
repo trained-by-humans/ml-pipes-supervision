@@ -185,7 +185,7 @@ def test_clip_drop_keeps_every_field_aligned_and_rejects_invalid_originals(image
     detections = invalid_detections()
     original = detections.xyxy.copy()
 
-    _, result = Detections.ClipBoxes(rounding=rounding, invalid="drop")(image, detections)
+    _, result = Detections.ClipBoxes(rounding=rounding, invalid_policy="drop")(image, detections)
 
     assert_other_fields_equal(result, detections[keep])
     assert result.class_id.tolist() == keep
@@ -197,17 +197,17 @@ def test_clip_raise_rejects_invalid_boxes_without_mutating_input(image, rounding
     detections = invalid_detections()
     original = detections.xyxy.copy()
     with pytest.raises(ValueError, match="invalid boxes"):
-        Detections.ClipBoxes(rounding=rounding, invalid="raise")(image, detections)
+        Detections.ClipBoxes(rounding=rounding, invalid_policy="raise")(image, detections)
     np.testing.assert_array_equal(detections.xyxy, original)
 
 
 def test_clip_raise_accepts_valid_boxes(image, detections):
-    _, result = Detections.ClipBoxes(invalid="raise")(image, detections)
+    _, result = Detections.ClipBoxes(invalid_policy="raise")(image, detections)
     np.testing.assert_array_equal(result.xyxy, detections.xyxy)
 
 
 @pytest.mark.parametrize("kwargs", [{"rounding": "floor"}, {"rounding": None},
-                                   {"invalid": "ignore"}, {"invalid": None}])
+                                   {"invalid_policy": "ignore"}, {"invalid_policy": None}])
 def test_clip_rejects_unknown_policies(kwargs):
     with pytest.raises(ValueError):
         Detections.ClipBoxes(**kwargs)
@@ -280,9 +280,9 @@ def test_empty_geometry(operator):
 
 
 @pytest.mark.parametrize("rounding", ["none", "nearest", "outward", "inward"])
-@pytest.mark.parametrize("invalid", ["keep", "drop", "raise"])
-def test_empty_clip_and_crop(image, rounding, invalid):
-    output_image, detections = Detections.ClipBoxes(rounding=rounding, invalid=invalid)(
+@pytest.mark.parametrize("invalid_policy", ["keep", "drop", "raise"])
+def test_empty_clip_and_crop(image, rounding, invalid_policy):
+    output_image, detections = Detections.ClipBoxes(rounding=rounding, invalid_policy=invalid_policy)(
         image, sv.Detections.empty(),
     )
     kept, crops = Detections.Crop()(output_image, detections)
@@ -314,7 +314,7 @@ def test_merge_delegates_validation_and_result_to_supervision(monkeypatch):
 def test_clip_crop_pipeline_validates_and_preserves_alignment(image, payload):
     input_image = ImagePayload(image, color_space="RGB") if payload else image
     pipeline = Pipeline([
-        Detections.ClipBoxes(rounding="outward", invalid="drop"), Detections.Crop(),
+        Detections.ClipBoxes(rounding="outward", invalid_policy="drop"), Detections.Crop(),
     ])
     # A multi-argument entry needs a declared tuple boundary in ml-pipes-core.
     pipeline.validate(pipeline_input_type=tuple[ImagePayload if payload else np.ndarray, sv.Detections])

@@ -14,8 +14,6 @@ from ml_pipes.vision import ImagePayload
 
 ImageInput: TypeAlias = npt.NDArray[np.uint8] | ImagePayload
 ImageT = TypeVar("ImageT", bound=ImageInput)
-BoxRounding: TypeAlias = Literal["none", "nearest", "outward", "inward"]
-InvalidBoxPolicy: TypeAlias = Literal["keep", "drop", "raise"]
 
 
 def _image_array(image: ImageInput) -> tuple[npt.NDArray[np.uint8], str]:
@@ -97,15 +95,15 @@ class DetectionsClipBoxes(Generic[ImageT]):
     def __init__(
         self,
         *,
-        rounding: BoxRounding = "none",
-        invalid: InvalidBoxPolicy = "keep",
+        rounding: Literal["none", "nearest", "outward", "inward"] = "none",
+        invalid_policy: Literal["keep", "drop", "raise"] = "keep",
     ) -> None:
         if rounding not in ("none", "nearest", "outward", "inward"):
             raise ValueError("rounding must be 'none', 'nearest', 'outward', or 'inward'.")
-        if invalid not in ("keep", "drop", "raise"):
-            raise ValueError("invalid must be 'keep', 'drop', or 'raise'.")
+        if invalid_policy not in ("keep", "drop", "raise"):
+            raise ValueError("invalid_policy must be 'keep', 'drop', or 'raise'.")
         self.rounding = rounding
-        self.invalid = invalid
+        self.invalid_policy = invalid_policy
 
     def __call__(
         self, image: ImageT, detections: sv.Detections,
@@ -122,11 +120,11 @@ class DetectionsClipBoxes(Generic[ImageT]):
             boxes[:, :2] = np.ceil(boxes[:, :2])
             boxes[:, 2:] = np.floor(boxes[:, 2:])
 
-        if self.invalid != "keep":
+        if self.invalid_policy != "keep":
             valid = _valid_boxes(detections.xyxy) & _valid_boxes(boxes)
-            if self.invalid == "raise" and not valid.all():
+            if self.invalid_policy == "raise" and not valid.all():
                 raise ValueError("Clipping produced invalid boxes (nonfinite or nonpositive area).")
-            if self.invalid == "drop":
+            if self.invalid_policy == "drop":
                 detections, boxes = detections[valid], boxes[valid]
         return image, replace(detections, xyxy=boxes)
 
@@ -137,7 +135,7 @@ class DetectionsCrop:
 
     Like ``sv.crop_image``, round to nearest pixels and clamp to image bounds.
     No rows are silently removed: invalid or pixel-empty regions raise. Use
-    ``Detections.ClipBoxes(rounding=..., invalid='drop')`` first to filter them.
+    ``Detections.ClipBoxes(rounding=..., invalid_policy='drop')`` first to filter them.
     Default crops are independent copies; ``copy=False`` permits image views.
     """
 
@@ -154,7 +152,7 @@ class DetectionsCrop:
         if not (_valid_boxes(detections.xyxy) & _valid_boxes(boxes)).all():
             raise ValueError(
                 "Crop requires finite, positive, non-empty pixel regions; use "
-                "Detections.ClipBoxes(rounding=..., invalid='drop') first."
+                "Detections.ClipBoxes(rounding=..., invalid_policy='drop') first."
             )
         crops = []
         for box in boxes:
