@@ -347,9 +347,6 @@ inspection snapshot overhead:
 With local Qwen on CPU (float32, one PyTorch thread), this capture took
 **184.08 seconds**, with 99.8% spent in the crop-description region.
 The first crop includes lazy Qwen model loading. Qwen weights were already
-cached, and detector construction happened before timing. Matplotlib used the
-non-interactive Agg backend. This is not a like-for-like speed comparison with
-the previous capture: inspection snapshots and generated answer lengths affect
-the total.
+cached, and detector construction happened before timing.
 
 Download the [JSON trace](../assets/detect_and_describe/trace.json) for this run.
