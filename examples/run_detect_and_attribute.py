@@ -267,7 +267,7 @@ def build_pipeline(
             Detections.NMS(threshold=0.5),
             Detections.ScaleBoxes(1 + 2 * padding),
             Recall("source_image", prepend=True),
-            Detections.ClipBoxes(rounding="outward", invalid="drop"),
+            Detections.ClipBoxes(rounding="outward", invalid_policy="drop"),
             Detections.Crop(),
             Store("detections", source=0),
             Pick(1),

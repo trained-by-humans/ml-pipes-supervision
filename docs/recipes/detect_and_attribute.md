@@ -81,7 +81,7 @@ pipeline = Pipeline(
         Detections.NMS(threshold=0.5),
         Detections.ScaleBoxes(1.1),  # 5% padding per side.
         Recall("source_image", prepend=True),
-        Detections.ClipBoxes(rounding="outward", invalid="drop"),
+        Detections.ClipBoxes(rounding="outward", invalid_policy="drop"),
         Detections.Crop(),  # (detections, BGR crops), aligned in the same order.
     ],
     auto_validate=True,
@@ -324,7 +324,7 @@ labels alongside their source responses.
             Detections.NMS(threshold=0.5),
             Detections.ScaleBoxes(1.1),
             Recall("source_image", prepend=True),
-            Detections.ClipBoxes(rounding="outward", invalid="drop"),
+            Detections.ClipBoxes(rounding="outward", invalid_policy="drop"),
             Detections.Crop(),
             Store("detections", source=0),
             Pick(1),

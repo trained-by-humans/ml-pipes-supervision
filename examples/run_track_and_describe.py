@@ -149,7 +149,7 @@ def build_frame_pipeline(
             )),
             Detections.ScaleBoxes(1 + 2 * padding),
             Recall("source_frame", prepend=True),
-            Detections.ClipBoxes(rounding="outward", invalid="drop"),
+            Detections.ClipBoxes(rounding="outward", invalid_policy="drop"),
             Detections.Crop(),
             Store("new_detections", source=0),
             Pick(1),

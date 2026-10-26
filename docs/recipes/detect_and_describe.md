@@ -93,7 +93,7 @@ pipeline = Pipeline(
         Detections.ScaleBoxes(1.1),  # 5% padding per side.
         Recall("source_image", prepend=True),
         # Round outward to whole pixels and drop invalid detections.
-        Detections.ClipBoxes(rounding="outward", invalid="drop"),
+        Detections.ClipBoxes(rounding="outward", invalid_policy="drop"),
         Detections.Crop(),  # (detections, BGR crops), aligned in the same order.
     ],
     auto_validate=True,
@@ -209,7 +209,7 @@ Run the completed pipeline to display the annotations and read the full answers.
             Detections.NMS(threshold=0.5),
             Detections.ScaleBoxes(1.1),
             Recall("source_image", prepend=True),
-            Detections.ClipBoxes(rounding="outward", invalid="drop"),
+            Detections.ClipBoxes(rounding="outward", invalid_policy="drop"),
             Detections.Crop(),
             Store("detections", source=0),
             Pick(1),  # Select crops from (detections, crops); detections are stored.
