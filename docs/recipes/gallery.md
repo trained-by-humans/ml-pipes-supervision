@@ -36,15 +36,15 @@ description: >-
     <span class="recipe-card__action">Open recipe <span aria-hidden="true">&rarr;</span></span>
   </a>
   <a class="recipe-card recipe-card--describe" href="../detect_and_describe/">
-    <span class="recipe-card__eyebrow">Vision and Language</span>
-    <span class="recipe-card__title">Detect and Describe</span>
+    <span class="recipe-card__eyebrow">Detect and Describe</span>
+    <span class="recipe-card__title">Describe Detected Objects with VLMs</span>
     <span class="recipe-card__summary">Detect objects, ask a vision-language model about each one, and annotate its answer.</span>
     <span class="recipe-card__tags">Detection&nbsp;&nbsp; Visual Q&amp;A&nbsp;&nbsp; Annotation</span>
     <span class="recipe-card__action">Open recipe <span aria-hidden="true">&rarr;</span></span>
   </a>
   <a class="recipe-card recipe-card--describe" href="../detect_and_attribute/">
-    <span class="recipe-card__eyebrow">Visual Attributes</span>
-    <span class="recipe-card__title">Detect and Attribute</span>
+    <span class="recipe-card__eyebrow">Detect and Attribute</span>
+    <span class="recipe-card__title">Extract Structured Attributes with VLMs</span>
     <span class="recipe-card__summary">Detect subjects, query multiple visual attributes per crop, and attach the parsed results.</span>
     <span class="recipe-card__tags">Detection&nbsp;&nbsp; Attribute Labels&nbsp;&nbsp; Annotation</span>
     <span class="recipe-card__action">Open recipe <span aria-hidden="true">&rarr;</span></span>

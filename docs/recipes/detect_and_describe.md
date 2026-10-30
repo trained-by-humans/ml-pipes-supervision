@@ -1,10 +1,10 @@
 ---
-title: Detect and Describe
+title: Describe Detected Objects with VLMs
 description: >-
   Build a detection-to-VLM pipeline that answers a question about each detected object and annotates it with the response.
 ---
 
-# Detect and Describe
+# Describe Detected Objects with VLMs
 
 Pipeline source: [run_detect_and_describe.py](https://github.com/trained-by-humans/ml-pipes-supervision/blob/main/examples/run_detect_and_describe.py)
 

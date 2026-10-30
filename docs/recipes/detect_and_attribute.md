@@ -1,17 +1,17 @@
 ---
-title: Detect and Attribute
+title: Extract Structured Attributes with VLMs
 description: >-
   Detect objects, query multiple visual attributes per crop with a vision-language model, and attach parsed single- and multi-value fields to detections.
 ---
 
-# Detect and Attribute
+# Extract Structured Attributes with VLMs
 
 Pipeline source: [run_detect_and_attribute.py](https://github.com/trained-by-humans/ml-pipes-supervision/blob/main/examples/run_detect_and_attribute.py)
 
 Detection models locate objects and assign class labels, but a label such as
 `person` does not tell you what someone is wearing, doing, or carrying.
-[Detect and Describe](detect_and_describe.md) adds that information by asking a
-vision-language model (VLM) about each detected subject.
+[Describe Detected Objects with VLMs](detect_and_describe.md) adds that
+information by asking a vision-language model (VLM) about each detected subject.
 
 Free-form descriptions are useful for open-ended questions, but their wording
 can vary. To filter or count detections by a particular property, it helps to
@@ -52,8 +52,8 @@ uncertain detections, and crop each remaining subject. Filtering avoids
 unnecessary VLM calls, while cropping gives the model a focused view of the
 subject whose attributes we want to extract.
 
-See [Detect and Describe](detect_and_describe.md#detect-and-filter-subjects) for a
-detailed explanation of detection, filtering, and crop preparation.
+See [Describe Detected Objects with VLMs](detect_and_describe.md#detect-and-filter-subjects)
+for a detailed explanation of detection, filtering, and crop preparation.
 
 ```python
 import numpy as np
@@ -289,7 +289,7 @@ pipeline = Pipeline(
         ...,  # Earlier operators unchanged.
         Detections.AttachData(),
         Recall("source_image", prepend=True),
-        BoxAnnotator(),  # Default class colors, as in Detect and Describe.
+        BoxAnnotator(),  # Default class colors, as in the description recipe.
         LabelAnnotator(
             label_formatter=lambda detection: format_attributes(detection.data, attributes),
             smart_position=True, max_line_length=40,  # Wrap longer multi-attribute labels.
