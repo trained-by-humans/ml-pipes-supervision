@@ -100,7 +100,7 @@ jobs:
           wheel_path="$(find dist -name '*.whl' -print -quit)"
           artifact-venv/bin/python -m pip install "$wheel_path"
           artifact-venv/bin/python -m pip check
-          artifact-venv/bin/python -c 'import ml_pipes.supervision'
+          artifact-venv/bin/python -I -c 'from pathlib import Path; import sys; import ml_pipes.supervision as package; assert Path(package.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())'
 
   compatibility-summary:
     # Keep this check name stable for GitHub's required status checks.

@@ -24,7 +24,10 @@ permanent exact framework pins.
 
 CI must pass on Python 3.10 through 3.13. It runs package tests, builds both
 the wheel and source distribution, runs `twine check`, and installs the built
-wheel in a clean environment for an import and dependency check.
+wheel in a clean environment for an import and dependency check. Import checks
+run in isolated Python mode (`-I`) and verify that the package is loaded from
+the verification environment, preventing checkout or editable sources from
+satisfying the artifact check.
 
 The stable `Compat: Gate` check aggregates matrix resolution and
 every compatibility matrix test. It succeeds only when those jobs succeed;
