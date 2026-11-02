@@ -67,9 +67,10 @@ retagging it with the same package version.
 ## Promote to PyPI
 
 After the TestPyPI verification succeeds, manually dispatch the `Release`
-workflow *from the staged tag itself*. The workflow rejects branch refs,
-downloads the GitHub Release assets, verifies their checksums, and publishes
-those same artifacts to PyPI using OIDC. The `pypi` environment supplies the
+workflow *from the staged tag itself*. The workflow requires a successful
+`Stage` run for the same commit, including TestPyPI verification. It rejects
+branch refs, downloads the GitHub Release assets, verifies their checksums,
+and publishes those same artifacts to PyPI using OIDC. The `pypi` environment supplies the
 required deployment review.
 
 The PyPI trusted publisher must be configured with:
