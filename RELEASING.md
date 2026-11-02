@@ -24,7 +24,10 @@ permanent exact framework pins.
 
 CI must pass on Python 3.10 through 3.13. It runs package tests, builds both
 the wheel and source distribution, runs `twine check`, and installs the built
-wheel in a clean environment for an import and dependency check.
+wheel in a clean environment for an import and dependency check. Import checks
+run in isolated Python mode (`-I`) and verify that the package is loaded from
+the verification environment, preventing checkout or editable sources from
+satisfying the artifact check.
 
 The stable `Compat: Gate` check aggregates matrix resolution and
 every compatibility matrix test. It succeeds only when those jobs succeed;
@@ -44,7 +47,9 @@ After merging, create an annotated tag named `v<package-version>`, for example
 3. It creates the GitHub Release containing those exact artifacts.
 4. It downloads those release assets, verifies their checksums, publishes only
    the wheel and source distribution to TestPyPI using OIDC, and verifies a
-   clean TestPyPI installation.
+   clean TestPyPI installation. The target wheel is downloaded exclusively
+   from TestPyPI, then installed locally with runtime dependencies resolved
+   from PyPI. A missing TestPyPI artifact cannot fall back to a PyPI copy.
 
 The TestPyPI trusted publisher must be configured with:
 
@@ -62,9 +67,10 @@ retagging it with the same package version.
 ## Promote to PyPI
 
 After the TestPyPI verification succeeds, manually dispatch the `Release`
-workflow *from the staged tag itself*. The workflow rejects branch refs,
-downloads the GitHub Release assets, verifies their checksums, and publishes
-those same artifacts to PyPI using OIDC. The `pypi` environment supplies the
+workflow *from the staged tag itself*. The workflow requires a successful
+`Stage` run for the same commit, including TestPyPI verification. It rejects
+branch refs, downloads the GitHub Release assets, verifies their checksums,
+and publishes those same artifacts to PyPI using OIDC. The `pypi` environment supplies the
 required deployment review.
 
 The PyPI trusted publisher must be configured with:
