@@ -82,6 +82,8 @@ nav:
       - Count Objects Crossing a Line: recipes/count_objects_crossing_line.md
       - Zero-Shot Object Detection with YOLO-World: recipes/zero_shot_object_detection_with_yolo_world.md
       - Oriented Bounding Boxes: recipes/oriented_bounding_boxes.md
+      - Describe Detected Objects with VLMs: recipes/detect_and_describe.md
+      - Extract Structured Attributes with VLMs: recipes/detect_and_attribute.md
       - Reference: recipes/index.md
   - Reference: reference.md
   - Coverage: coverage.md

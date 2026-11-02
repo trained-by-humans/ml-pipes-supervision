@@ -1,0 +1,169 @@
+{
+  "total_duration_s": 15.113263958999596,
+  "batch_size": null,
+  "workers": null,
+  "spans": [
+    {
+      "label": "0:LoadFile",
+      "duration_s": 0.00042666700028348714,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "1:Decode",
+      "duration_s": 0.005347666003217455,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "2:ImageToArray",
+      "duration_s": 0.0006049579969840124,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "3:Store",
+      "duration_s": 7.208000170066953e-06,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "4:RoboflowInference",
+      "duration_s": 0.21997733299940592,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "5:Select",
+      "duration_s": 0.0001380419998895377,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "6:DetectionsFromInference",
+      "duration_s": 0.0001556249990244396,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "7:DetectionsFilter",
+      "duration_s": 0.00020850000146310776,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "8:DetectionsFilter",
+      "duration_s": 5.075000080978498e-05,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "9:DetectionsNMS",
+      "duration_s": 0.00020008299907203764,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "10:DetectionsScaleBoxes",
+      "duration_s": 5.7459001254756004e-05,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "11:Recall",
+      "duration_s": 3.1660019885748625e-06,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "12:DetectionsClipBoxes",
+      "duration_s": 9.175000013783574e-05,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "13:DetectionsCrop",
+      "duration_s": 0.0005675420034094714,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "14:Store",
+      "duration_s": 1.6834004782140255e-05,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "15:Pick",
+      "duration_s": 8.949999755714089e-05,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "16:Scatter",
+      "duration_s": 14.84654741599661,
+      "error": false,
+      "child_trace": {
+        "total_duration_s": 1.3496675834539928,
+        "batch_size": 11.0,
+        "workers": 1,
+        "spans": [
+          {
+            "label": "17:ImageToArray",
+            "duration_s": 0.00013221963705622,
+            "error": false,
+            "child_trace": null
+          },
+          {
+            "label": "18:Qwen3VL",
+            "duration_s": 1.3494225910008852,
+            "error": false,
+            "child_trace": null
+          }
+        ]
+      }
+    },
+    {
+      "label": "20:ParseAttributes",
+      "duration_s": 0.00012845799938077107,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "21:Recall",
+      "duration_s": 3.125001967418939e-06,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "22:DetectionsAttachData",
+      "duration_s": 5.0125003326684237e-05,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "23:Recall",
+      "duration_s": 1.0410003596916795e-06,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "24:BoxAnnotator",
+      "duration_s": 0.0008865839990903623,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "25:LabelAnnotator",
+      "duration_s": 0.0025728749969857745,
+      "error": false,
+      "child_trace": null
+    },
+    {
+      "label": "26:PlotImage",
+      "duration_s": 0.021866583003429696,
+      "error": false,
+      "child_trace": null
+    }
+  ]
+}

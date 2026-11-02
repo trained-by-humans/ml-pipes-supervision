@@ -1,0 +1,220 @@
+[
+  {
+    "detection_index": 0,
+    "xyxy": [
+      1138.0,
+      944.0,
+      1248.0,
+      1080.0
+    ],
+    "class_id": 1,
+    "confidence": 0.8704256415367126,
+    "attributes": {
+      "fashion_style": "casual",
+      "activity": "walking",
+      "accessories": [
+        "shoulder_bag"
+      ]
+    },
+    "response": "```json\n{\n  \"fashion_style\": \"casual\",\n  \"activity\": \"walking\",\n  \"accessories\": [\n    \"shoulder_bag\"\n  ]\n}\n```"
+  },
+  {
+    "detection_index": 1,
+    "xyxy": [
+      1404.0,
+      694.0,
+      1527.0,
+      898.0
+    ],
+    "class_id": 1,
+    "confidence": 0.7988594174385071,
+    "attributes": {
+      "fashion_style": "casual",
+      "activity": "standing",
+      "accessories": [
+        "backpack",
+        "phone"
+      ]
+    },
+    "response": "```json\n{\n  \"fashion_style\": \"casual\",\n  \"activity\": \"standing\",\n  \"accessories\": [\n    \"backpack\",\n    \"phone\"\n  ]\n}\n```"
+  },
+  {
+    "detection_index": 2,
+    "xyxy": [
+      662.0,
+      640.0,
+      749.0,
+      866.0
+    ],
+    "class_id": 1,
+    "confidence": 0.7604209184646606,
+    "attributes": {
+      "fashion_style": "casual",
+      "activity": "walking",
+      "accessories": [
+        "shoulder_bag",
+        "hat",
+        "shopping_bag"
+      ]
+    },
+    "response": "```json\n{\n  \"fashion_style\": \"casual\",\n  \"activity\": \"walking\",\n  \"accessories\": [\n    \"shoulder_bag\",\n    \"hat\",\n    \"shopping_bag\"\n  ]\n}\n```"
+  },
+  {
+    "detection_index": 3,
+    "xyxy": [
+      747.0,
+      443.0,
+      828.0,
+      634.0
+    ],
+    "class_id": 1,
+    "confidence": 0.6951755881309509,
+    "attributes": {
+      "fashion_style": "casual",
+      "activity": "walking",
+      "accessories": [
+        "backpack"
+      ]
+    },
+    "response": "```json\n{\n  \"fashion_style\": \"casual\",\n  \"activity\": \"walking\",\n  \"accessories\": [\n    \"backpack\"\n  ]\n}\n```"
+  },
+  {
+    "detection_index": 4,
+    "xyxy": [
+      564.0,
+      260.0,
+      634.0,
+      420.0
+    ],
+    "class_id": 1,
+    "confidence": 0.6852235198020935,
+    "attributes": {
+      "fashion_style": "casual",
+      "activity": "walking",
+      "accessories": [
+        "hat",
+        "glasses",
+        "shoulder_bag"
+      ]
+    },
+    "response": "```json\n{\n  \"fashion_style\": \"casual\",\n  \"activity\": \"walking\",\n  \"accessories\": [\n    \"hat\",\n    \"glasses\",\n    \"shoulder_bag\"\n  ]\n}\n```"
+  },
+  {
+    "detection_index": 5,
+    "xyxy": [
+      1136.0,
+      500.0,
+      1211.0,
+      666.0
+    ],
+    "class_id": 1,
+    "confidence": 0.6730991005897522,
+    "attributes": {
+      "fashion_style": "casual",
+      "activity": "walking",
+      "accessories": [
+        "backpack",
+        "shoulder_bag"
+      ]
+    },
+    "response": "```json\n{\n  \"fashion_style\": \"casual\",\n  \"activity\": \"walking\",\n  \"accessories\": [\n    \"backpack\",\n    \"shoulder_bag\"\n  ]\n}\n```"
+  },
+  {
+    "detection_index": 6,
+    "xyxy": [
+      702.0,
+      232.0,
+      773.0,
+      399.0
+    ],
+    "class_id": 1,
+    "confidence": 0.6645504832267761,
+    "attributes": {
+      "fashion_style": "casual",
+      "activity": "walking",
+      "accessories": [
+        "backpack"
+      ]
+    },
+    "response": "```json\n{\n  \"fashion_style\": \"casual\",\n  \"activity\": \"walking\",\n  \"accessories\": [\n    \"backpack\"\n  ]\n}\n```"
+  },
+  {
+    "detection_index": 7,
+    "xyxy": [
+      1444.0,
+      311.0,
+      1521.0,
+      495.0
+    ],
+    "class_id": 1,
+    "confidence": 0.6603212952613831,
+    "attributes": {
+      "fashion_style": "casual",
+      "activity": "walking",
+      "accessories": [
+        "glasses"
+      ]
+    },
+    "response": "```json\n{\n  \"fashion_style\": \"casual\",\n  \"activity\": \"walking\",\n  \"accessories\": [\"glasses\"]\n}\n```"
+  },
+  {
+    "detection_index": 8,
+    "xyxy": [
+      29.0,
+      785.0,
+      148.0,
+      1000.0
+    ],
+    "class_id": 1,
+    "confidence": 0.6503532528877258,
+    "attributes": {
+      "fashion_style": "casual",
+      "activity": "walking",
+      "accessories": [
+        "backpack",
+        "glasses"
+      ]
+    },
+    "response": "```json\n{\n  \"fashion_style\": \"casual\",\n  \"activity\": \"walking\",\n  \"accessories\": [\n    \"backpack\",\n    \"glasses\"\n  ]\n}\n```"
+  },
+  {
+    "detection_index": 9,
+    "xyxy": [
+      1459.0,
+      464.0,
+      1546.0,
+      652.0
+    ],
+    "class_id": 1,
+    "confidence": 0.6220282912254333,
+    "attributes": {
+      "fashion_style": "casual",
+      "activity": "walking",
+      "accessories": [
+        "backpack",
+        "shoulder_bag",
+        "phone"
+      ]
+    },
+    "response": "```json\n{\n  \"fashion_style\": \"casual\",\n  \"activity\": \"walking\",\n  \"accessories\": [\n    \"backpack\",\n    \"shoulder_bag\",\n    \"phone\"\n  ]\n}\n```"
+  },
+  {
+    "detection_index": 10,
+    "xyxy": [
+      257.0,
+      431.0,
+      335.0,
+      619.0
+    ],
+    "class_id": 1,
+    "confidence": 0.6066638231277466,
+    "attributes": {
+      "fashion_style": "casual",
+      "activity": "walking",
+      "accessories": [
+        "glasses"
+      ]
+    },
+    "response": "```json\n{\n  \"fashion_style\": \"casual\",\n  \"activity\": \"walking\",\n  \"accessories\": [\"glasses\"]\n}\n```"
+  }
+]

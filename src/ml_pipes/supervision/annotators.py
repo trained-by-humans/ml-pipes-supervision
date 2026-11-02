@@ -15,14 +15,16 @@ from .core import Detection
 
 def _detection_records(detections: sv.Detections) -> Iterator[Detection]:
     """Yield the public per-detection view used by formatter callbacks."""
-    for xyxy, mask, confidence, class_id, tracker_id, data in detections:
+    for index, (xyxy, mask, confidence, class_id, tracker_id, _) in enumerate(detections):
         yield Detection(
             xyxy=xyxy,
             mask=mask,
             confidence=confidence,
             class_id=class_id,
             tracker_id=tracker_id,
-            data=data,
+            # Upstream iteration wraps list entries in an extra list. Expose
+            # the actual row value consistently for both lists and arrays.
+            data={key: values[index] for key, values in detections.data.items()},
         )
 
 
