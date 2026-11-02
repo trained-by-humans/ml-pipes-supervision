@@ -47,7 +47,9 @@ After merging, create an annotated tag named `v<package-version>`, for example
 3. It creates the GitHub Release containing those exact artifacts.
 4. It downloads those release assets, verifies their checksums, publishes only
    the wheel and source distribution to TestPyPI using OIDC, and verifies a
-   clean TestPyPI installation.
+   clean TestPyPI installation. The target wheel is downloaded exclusively
+   from TestPyPI, then installed locally with runtime dependencies resolved
+   from PyPI. A missing TestPyPI artifact cannot fall back to a PyPI copy.
 
 The TestPyPI trusted publisher must be configured with:
 
