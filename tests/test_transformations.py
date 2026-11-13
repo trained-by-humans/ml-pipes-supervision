@@ -148,14 +148,16 @@ def test_clip_rounding_modes(image, rounding, expected):
     assert detections == original
 
 
-def invalid_detections():
+def invalid_detections(*, nonfinite=True):
     boxes = [
         [-2, -3, 5, 6], [25, 1, 30, 8], [2, 2, 2, 6],
         [1.8, 1, 1.2, 5], [np.nan, 1, 4, 5], [-np.inf, 1, 4, 5],
         [1.1, 2.1, 1.4, 2.4], [10, 8, 14, 12],
     ]
-    return sv.Detections(
-        xyxy=np.asarray(boxes, dtype=np.float64),
+    if not nonfinite:
+        boxes[4:6] = [[4, 1, 3, 5], [5, 1, 4, 5]]
+    detections = sv.Detections(
+        xyxy=np.nan_to_num(np.asarray(boxes, dtype=np.float64)),
         mask=np.ones((len(boxes), 16, 20), dtype=bool),
         confidence=np.arange(len(boxes), dtype=float),
         class_id=np.arange(len(boxes)),
@@ -164,10 +166,14 @@ def invalid_detections():
               "source_xyxy": np.asarray(boxes, dtype=np.float64)},
         metadata={"source": "invalids"},
     )
+    # Supervision 0.31 rejects nonfinite coordinates during construction.
+    # Mutate a valid object to exercise our handling of corrupted inputs.
+    detections.xyxy = np.asarray(boxes, dtype=np.float64)
+    return detections
 
 
 def test_clip_defaults_match_upstream_including_invalid_rows(image):
-    detections = invalid_detections()
+    detections = invalid_detections(nonfinite=False)
     original = detections.xyxy.copy()
     _, result = Detections.ClipBoxes()(image, detections)
 
@@ -248,7 +254,8 @@ def test_crop_delegates_prepared_regions_to_supervision(image, detections, monke
     [25, 2, 30, 8], [1.1, 2.1, 1.4, 2.4], [1e20, 2, 2e20, 8],
 ])
 def test_crop_raises_instead_of_silently_dropping_invalid_regions(image, box):
-    detections = sv.Detections(xyxy=np.asarray([box], dtype=np.float64))
+    detections = sv.Detections(xyxy=np.zeros((1, 4), dtype=np.float64))
+    detections.xyxy = np.asarray([box], dtype=np.float64)
     with pytest.raises(ValueError, match="non-empty pixel regions"):
         Detections.Crop()(image, detections)
 

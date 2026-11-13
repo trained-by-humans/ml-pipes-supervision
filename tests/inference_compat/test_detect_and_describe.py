@@ -380,15 +380,17 @@ def test_clipping_works_without_padding_and_keeps_metadata_aligned(example_model
     example, *_ = example_models
     image = np.zeros((20, 30, 3), dtype=np.uint8)
     detections = sv.Detections(
-        xyxy=np.asarray([
-            [-5, -5, 10, 10], [20.25, 10.5, 40, 25], [31, 0, 40, 10],
-            [0, 0, 0, 10], [10, 0, 5, 10], [5, 5, np.nan, 10],
-            [-np.inf, 0, 10, 10],
-        ], dtype=np.float64),
+        xyxy=np.zeros((7, 4), dtype=np.float64),
         class_id=np.arange(7),
         confidence=np.linspace(0.1, 0.7, 7),
         data={"name": np.asarray(["first", "second", "outside", "empty", "reversed", "nan", "inf"])},
     )
+    # Nonfinite coordinates can only arise after construction on Supervision 0.31.
+    detections.xyxy = np.asarray([
+        [-5, -5, 10, 10], [20.25, 10.5, 40, 25], [31, 0, 40, 10],
+        [0, 0, 0, 10], [10, 0, 5, 10], [5, 5, np.nan, 10],
+        [-np.inf, 0, 10, 10],
+    ], dtype=np.float64)
     original_boxes = detections.xyxy.copy()
 
     preserved_image, kept = Detections.ClipBoxes(invalid_policy="drop")(image, detections)
@@ -423,7 +425,7 @@ def test_pad_clip_crop_preserves_alignment_and_returns_prepared_detection_boxes(
     detections = sv.Detections(
         xyxy=np.asarray([
             [-5, -5, 10, 10], [0, 0, 0, 10], [31, 0, 40, 10],
-            [5, 5, np.nan, 10], [10, 10, 40, 25],
+            [5, 5, 4, 10], [10, 10, 40, 25],
         ], dtype=np.float32),
         class_id=np.arange(5),
     )
