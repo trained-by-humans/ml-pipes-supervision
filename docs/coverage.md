@@ -22,7 +22,7 @@ Below, `sv` refers to `supervision`; operator examples come from
 | `Config` | Native value or configured object passed to an operator | `sv.Color`, `sv.ColorLookup`, `sv.OverlapMetric`, `sv.PolygonZone` |
 | `Data` | Native payload passed between pipeline steps | `sv.Detections`, `sv.KeyPoints`, `sv.CompactMask` |
 | `Utility` | Native helper or I/O resource used directly | `sv.get_video_frames_generator`, `sv.CSVSink`, `sv.VideoSink` |
-| `Deprecated` | Deprecated upstream API; prefer its supported replacement | `sv.ByteTrack` (not `ml_pipes.supervision.trackers.ByteTrack`) |
+| `Legacy` | Superseded upstream API; prefer its supported replacement | `sv.ByteTrack` (not `ml_pipes.supervision.trackers.ByteTrack`) |
 
 ## Supervision API Coverage
 
@@ -69,7 +69,6 @@ Below, `sv` refers to `supervision`; operator examples come from
 | `detection` | Component | `LineZone` | AS-IS (`Config`); `TriggerLineZone` |
 | `detection` | Component | `LineZoneAnnotator` | `LineZoneAnnotator` |
 | `detection` | Component | `LineZoneAnnotatorMulticlass` | None |
-| `detection` | Component | `LMM` | None |
 | `detection` | Component | `OverlapFilter` | None |
 | `detection` | Component | `OverlapMetric` | AS-IS (`Config`); `Detections.NMS()`, `Detections.NMM()` |
 | `detection` | Component | `PolygonZone` | AS-IS (`Config`); `TriggerZone` |
@@ -143,7 +142,7 @@ Below, `sv` refers to `supervision`; operator examples come from
 | `key_points` | Component | `VertexLabelAnnotator` | None |
 | `metrics` | Component | `ConfusionMatrix` | None |
 | `metrics` | Component | `MeanAveragePrecision` | None |
-| `tracker` | Component | `ByteTrack` | Deprecated; [Tracker API Coverage](#tracker-api-coverage) |
+| `tracker` | Component | `ByteTrack` | Legacy; use [Tracker API Coverage](#tracker-api-coverage) |
 | `utils` | Component | `FPSMonitor` | `FPSAnnotator`, `FPSMonitor` |
 | `utils` | Component | `ImageSink` | AS-IS (`Utility`) |
 | `utils` | Component | `ImageWindow` | `ImageWindow` |
@@ -157,7 +156,6 @@ Below, `sv` refers to `supervision`; operator examples come from
 | `utils` | Function | `letterbox_image` | None |
 | `utils` | Function | `list_files_with_extensions` | None |
 | `utils` | Function | `load_image_from_url` | None |
-| `utils` | Function | `overlay_image` | None |
 | `utils` | Function | `pillow_to_cv2` | None |
 | `utils` | Function | `plot_image` | `PlotImage` |
 | `utils` | Function | `plot_images_grid` | None |
@@ -171,9 +169,11 @@ Below, `sv` refers to `supervision`; operator examples come from
 > or mask arrays. They cover the corresponding operation without providing an
 > identical low-level input/output API.
 
-Source: [roboflow/supervision](https://github.com/roboflow/supervision/blob/d2aa06b13dc7a56ddce283aa8f8bc04fbe5a5a1d/src/supervision/__init__.py)
+Source: [roboflow/supervision](https://github.com/roboflow/supervision/blob/develop/src/supervision/__init__.py).
 
 ## Tracker API Coverage
+
+These operators track objects across frames in a pipeline.
 
 | Group   | Tracking surface            | ml-pipes correspondence                      |
 |---------|-----------------------------|----------------------------------------------|

@@ -18,33 +18,12 @@ python -m pip install -e .
 
 ## Tests
 
-Install the test dependencies, then run the full package, example, and CI-helper
-suite from the repository root before submitting a change:
+Add or update focused tests for behavior changes. Keep generic Supervision
+tests independent of optional Inference, and test our integration boundaries
+without model downloads or interactive windows.
 
-```bash
-python -m pip install -e '.[test,inference]' packaging
-python -m pytest -q tests .github/tests
-```
-
-Add or update tests in `tests/` for behavior changes. While developing, run a
-single test module with:
-
-```bash
-python -m pytest tests/test_core.py -q
-```
-
-See [the testing guide](../tests/README.md) for environment setup, targeted test
-commands, suite organization, and scope, including the CI-helper tests.
-On Python 3.13, optional Inference tests require Supervision >=0.30.6;
-use `.[test]` for core-only tests at the package's 0.30.0 floor.
-The CI-helper tests need the explicit `.github/tests` path during local runs.
-
-Keep tests independent of network credentials, model downloads, and interactive
-windows by mocking model inference and GUI boundaries. Test the behavior this
-integration owns rather than duplicating upstream regression suites.
-
-The suite may emit deprecation warnings from third-party dependencies; these
-warnings do not currently fail the test run.
+See [the testing guide](../tests/README.md) for environment setup, suite
+commands, CI-helper checks, and testing scope.
 
 ## Pull requests
 

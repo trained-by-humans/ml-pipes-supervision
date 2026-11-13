@@ -1,25 +1,41 @@
 # Testing
 
-From the repository root, install the package and test dependencies in your
-virtual environment:
-
-```sh
-python -m pip install -e '.[test,inference]' packaging
-```
-
-`packaging` is used by the CI-helper tests. The tests never download or execute
-models. On Python 3.13, the `inference` extra requires Supervision >=0.30.6.
-Use only `.[test]` to test the core integration at its 0.30.0 floor; when Inference
-is absent, Inference wrapper and dependent example tests skip. An installed
-Inference package's import failures are not skipped.
+The generic Supervision suite and optional `inference-compat` suite use separate
+virtual environments so Inference can select a compatible Supervision release
+without constraining the generic suite.
 
 ## Running tests
 
-```sh
-# All package, example, and CI-helper tests
-python -m pytest -q tests .github/tests
+From the repository root, install and run the generic suite:
 
-# Package and example tests only (also the default pytest discovery)
+```sh
+python -m pip install -e '.[test]' packaging
+python -m pytest -q tests --ignore=tests/inference_compat
+python -m pytest -q .github/tests
+```
+
+`packaging` is used by the CI-helper tests. The tests never download or execute
+models. To test a specific supported release, add an exact `supervision` pin
+to the install command; CI resolves the lowest and highest permitted releases
+automatically.
+
+In a separate virtual environment, install the optional Inference dependency
+and run its compatibility suite:
+
+```sh
+python -m pip install -e '.[test,inference]'
+python -m pip check
+python -m pytest -q tests/inference_compat
+```
+
+Let pip resolve Supervision for this environment; optional Inference may
+require an older supported release. The public install extra is `inference`;
+`inference-compat` names the additional CI suite.
+
+Other useful commands:
+
+```sh
+# Combined package/example suite, using this environment's resolved versions
 python -m pytest -q tests
 
 # A single integration boundary
@@ -28,19 +44,28 @@ python -m pytest -q tests/test_trackers.py
 # Real-library multi-operator smoke tests
 python -m pytest -q tests/test_pipelines.py
 
-# Example-owned behavior
+# Generic example-owned behavior
 python -m pytest -q tests/examples
 
 # CI matrix selection, without querying PyPI
 python -m pytest -q .github/tests
 ```
 
-CI runs package/example tests against the lowest and highest stable Supervision
-releases permitted by `pyproject.toml` for each supported Python version. Matrix
-and dependency-selection tests run separately in the setup job. Inference 1.3.8
-is tested at both bounds on Python 3.10–3.12. Python 3.13 tests the core integration
-at both bounds, and adds Inference 1.7.4 only to the highest-version profile.
-`.github` is hidden, so its tests need an explicit path during local runs.
+Default pytest discovery includes both suites. Optional wrapper and dependent
+example tests skip when Inference is absent; import failures from an installed
+Inference package fail the tests. `.github` is hidden, so its tests need an
+explicit path during local runs.
+
+CI runs the generic suite against the lowest and highest stable Supervision
+releases permitted by `pyproject.toml` on Python 3.10–3.13. Independently, the
+`inference-compat` matrix runs only the optional suite on the same Python
+versions, with dependencies resolved from `.[test,inference]`. Matrix and
+dependency-selection tests run in the setup job. Both compatibility matrices
+and matrix resolution feed `Compat: Gate`.
+
+Supervision 0.31 validates finite coordinates when constructing detections.
+Tests for our invalid-row handling corrupt an already constructed object's
+coordinates so they still exercise the operator boundary on both series.
 
 ## Organization and scope
 
@@ -54,11 +79,12 @@ at both bounds, and adds Inference 1.7.4 only to the highest-version profile.
 | `test_zones.py` | Zone delegation and our tracking-timer logic |
 | `test_views.py` | Display adapter, with only the GUI boundary replaced |
 | `test_inspection.py` | Registration of the Supervision BGR image convention |
-| `test_inference.py` | Model selection, inference options, and image normalization |
 | `examples/test_qwen_local.py` | Example-only local Qwen RGB payload validation, lazy loading, device selection, and generation boundaries |
 | `test_trackers.py` | Tracker construction, updates, frame handling, reset, readers |
 | `test_pipelines.py` | Validated multi-operator flows using real Supervision objects |
-| `examples/` | Behavior implemented in our runnable examples |
+| `examples/` | Generic example behavior without optional Inference |
+| `inference_compat/` | Optional Inference wrappers and examples that depend on them |
+| `inference_compat/test_inference.py` | Model selection, inference options, and image normalization |
 | `../.github/tests/` | CI tooling rather than runtime integrations |
 
 Tests should verify behavior this repository owns: argument mapping, tuple

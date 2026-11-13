@@ -29,12 +29,11 @@ run in isolated Python mode (`-I`) and verify that the package is loaded from
 the verification environment, preventing checkout or editable sources from
 satisfying the artifact check.
 
-The stable `Compat: Gate` check aggregates matrix resolution and
-every compatibility matrix test. It succeeds only when those jobs succeed;
-failed, cancelled, or skipped jobs block it. Configure GitHub PR rules to
-require this check rather than the versioned matrix job names, and require
-`Build and validate distribution` separately. Future standalone jobs are not
-included automatically and need their own required checks when applicable.
+The required `Compat: Gate` PR check aggregates matrix resolution, the
+Supervision bounds matrix, and the additional `inference-compat` matrix on
+Python 3.10–3.13. It succeeds only when all those jobs succeed; failed,
+cancelled, or skipped jobs block it. Distribution artifacts are checked
+separately by `Build and validate distribution`.
 
 ## Stage on TestPyPI
 

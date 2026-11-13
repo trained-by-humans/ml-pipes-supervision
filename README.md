@@ -6,7 +6,7 @@
   <a href="https://pypi.org/project/ml-pipes-supervision/"><img src="https://img.shields.io/pypi/v/ml-pipes-supervision?style=flat-square&amp;logo=pypi&amp;logoColor=white&amp;label=PyPI&amp;color=C48800" alt="Latest PyPI release"></a>
   <a href="https://pypi.org/project/ml-pipes-supervision/"><img src="https://img.shields.io/badge/Python-3.10%2B-2377C8?style=flat-square&amp;logo=python&amp;logoColor=white" alt="Python 3.10 or newer"></a>
   <a href="https://github.com/trained-by-humans/ml-pipes-supervision/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/ml-pipes-supervision?style=flat-square&amp;label=License&amp;color=287C35" alt="Apache 2.0 license"></a>
-  <a href="docs/coverage.md"><img src="https://img.shields.io/badge/Supervision-0.30.0-7110D4?style=flat-square" alt="Supervision 0.30.0 API coverage"></a>
+  <a href="docs/coverage.md"><img src="https://img.shields.io/badge/Supervision-0.31.7-7110D4?style=flat-square" alt="Supervision 0.31.7 API coverage"></a>
 </p>
 
 <p align="center">
@@ -48,16 +48,14 @@ Requires Python 3.10 or newer.
 python -m pip install ml-pipes-supervision
 ```
 
+The supported Supervision range is `>=0.30.0,<0.32`.
+
 For `RoboflowInference`, including the Quickstart below, install the optional
 Inference integration:
 
 ```bash
 python -m pip install "ml-pipes-supervision[inference]"
 ```
-
-> [!NOTE]
-> On Python 3.13, the `inference` extra requires Supervision >=0.30.6.
-> Without this extra, the package supports Supervision >=0.30.0.
 
 > [!WARNING]
 > The `trackers` dependency currently installs `opencv-python`. Avoid installing
@@ -107,6 +105,11 @@ and [end-to-end examples](./examples/)!
 The GitHub Pages tutorials preserve the corresponding Supervision guides and
 add their `ml-pipes` counterparts, so you can compare both approaches side by
 side.
+
+## Supervision Updates
+
+For the latest upstream changes, see
+[Supervision's GitHub releases](https://github.com/roboflow/supervision/releases).
 
 ## Why Supervision with ml-pipes?
 

@@ -41,17 +41,12 @@ def test_inference_extra_selects_supported_release(
     assert str(requirement.specifier) == f"=={inference_version}"
 
 
-def test_python313_core_test_extra_does_not_install_inference() -> None:
-    requirements = active_requirements("test", "3.13")
+@pytest.mark.parametrize("python_version", ["3.10", "3.11", "3.12", "3.13"])
+def test_core_test_extra_does_not_install_inference(python_version: str) -> None:
+    requirements = active_requirements("test", python_version)
 
     assert "pytest" in requirements
     assert "inference" not in requirements
-
-
-def test_older_python_test_extra_keeps_inference_coverage() -> None:
-    requirement = active_requirements("test", "3.12")["inference"]
-
-    assert str(requirement.specifier) == "==1.3.8"
 
 
 def test_example_only_qwen_runtime_is_not_declared_as_package_dependencies():
